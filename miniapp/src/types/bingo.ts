@@ -7,6 +7,7 @@ export type Room = {
 
 export type Cartela = {
   id: number
+  display_number: number
   room_id: number
   numbers: Array<Array<number | 'FREE'>>
   predefined: boolean

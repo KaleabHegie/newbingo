@@ -11,11 +11,11 @@ import type { Cartela } from '../types/bingo'
 
 export function PlayPage() {
   const navigate = useNavigate()
-  const { roomBet } = useParams<{ roomBet: string }>()
-  const bet = Number(roomBet)
+  const { roomId } = useParams<{ roomId: string }>()
+  const currentRoomId = Number(roomId)
+  const [bet, setBet] = useState<number>(0)
   const [balance, setBalance] = useState<string>('0.00')
   const [totalWin, setTotalWin] = useState<string>('0.00')
-  const [roomId, setRoomId] = useState<number | null>(null)
   const [claiming, setClaiming] = useState(false)
   const [info, setInfo] = useState<string | null>(null)
 
@@ -39,9 +39,10 @@ export function PlayPage() {
   } = useGameStore()
 
   useEffect(() => {
-    const close = connectRoomSocket(bet)
+    if (!Number.isFinite(currentRoomId) || currentRoomId <= 0) return
+    const close = connectRoomSocket(currentRoomId)
     return () => close()
-  }, [bet])
+  }, [currentRoomId])
 
   useEffect(() => {
     const timer = setInterval(() => tickCountdown(), 1000)
@@ -60,9 +61,9 @@ export function PlayPage() {
     async function loadSummary() {
       try {
         const rooms = await getRooms()
-        const room = rooms.find((r) => r.bet_amount === bet)
+        const room = rooms.find((r) => r.id === currentRoomId)
         if (!room) return
-        setRoomId(room.id)
+        setBet(room.bet_amount)
         const summary = await getRoomSummary(room.id)
         if (active) setTotalWin(summary.total_win)
         if (summary.game_id && active) setGame(summary.game_id)
@@ -81,7 +82,7 @@ export function PlayPage() {
       active = false
       clearInterval(timer)
     }
-  }, [bet, onCountdownStarted, setGame])
+  }, [currentRoomId, onCountdownStarted, setGame])
 
   useEffect(() => {
     if (!gameFinished && !removalReason) return
@@ -89,11 +90,11 @@ export function PlayPage() {
     setInfo(removalReason || winnerText)
     const timer = setTimeout(() => {
       clearRoundMessages()
-      localStorage.removeItem(`selected_cartela_${bet}`)
-      navigate(`/room/${bet}/cartelas`)
+      localStorage.removeItem(`selected_cartela_room_${currentRoomId}`)
+      navigate(`/room/${currentRoomId}/cartelas`)
     }, 4000)
     return () => clearTimeout(timer)
-  }, [gameFinished, removalReason, winnerName, winnerPrize, bet, navigate, clearRoundMessages])
+  }, [gameFinished, removalReason, winnerName, winnerPrize, currentRoomId, navigate, clearRoundMessages])
 
   async function handleBingoClaim() {
     if (!gameId) {
@@ -106,8 +107,8 @@ export function PlayPage() {
       const result = await claimBingo(gameId)
       if (!result.valid) {
         setInfo(result.reason || 'Fake bingo. Removed from game.')
-        localStorage.removeItem(`selected_cartela_${bet}`)
-        setTimeout(() => navigate(`/room/${bet}/cartelas`), 1500)
+        localStorage.removeItem(`selected_cartela_room_${currentRoomId}`)
+        setTimeout(() => navigate(`/room/${currentRoomId}/cartelas`), 1500)
       } else {
         setInfo(`Valid bingo. Waiting to announce winner...`)
       }
@@ -125,7 +126,7 @@ export function PlayPage() {
 
   useEffect(() => {
     if (selectedCartela) return
-    const raw = localStorage.getItem(`selected_cartela_${bet}`)
+    const raw = localStorage.getItem(`selected_cartela_room_${currentRoomId}`)
     if (!raw) return
     try {
       const parsed = JSON.parse(raw) as Cartela
@@ -133,7 +134,7 @@ export function PlayPage() {
     } catch {
       // ignore broken local state
     }
-  }, [bet, selectedCartela, setSelectedCartela])
+  }, [currentRoomId, selectedCartela, setSelectedCartela])
 
   const markedCount = useMemo(() => markedNumbers.length, [markedNumbers])
   const currentCallLabel = useMemo(() => {
@@ -149,7 +150,10 @@ export function PlayPage() {
     return (
       <main className="mx-auto max-w-xl p-6">
         <p className="mb-4">No cartela selected yet.</p>
-        <button onClick={() => navigate(`/room/${bet}/cartelas`)} className="rounded bg-brand-500 px-4 py-2 font-semibold">
+        <button
+          onClick={() => navigate(`/room/${currentRoomId}/cartelas`)}
+          className="rounded bg-brand-500 px-4 py-2 font-semibold"
+        >
           Go Select Cartela
         </button>
       </main>
@@ -190,7 +194,7 @@ export function PlayPage() {
           <CartelaBoard cartela={selectedCartela} markedNumbers={markedNumbers} onNumberClick={toggleMarkedNumber} />
           <button
             onClick={handleBingoClaim}
-            disabled={claiming || countdownLeft !== null || !roomId}
+            disabled={claiming || countdownLeft !== null || !currentRoomId}
             className="mt-4 w-full rounded bg-rose-600 px-4 py-3 font-semibold text-white hover:bg-rose-700 disabled:opacity-50"
           >
             {claiming ? 'Checking...' : 'BINGO'}

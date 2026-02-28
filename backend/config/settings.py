@@ -95,15 +95,9 @@ CHANNEL_LAYERS = {
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
 CELERY_BEAT_SCHEDULE = {
-    "room-20-loop": {
-        "task": "apps.bingo.tasks.room_game_loop",
+    "room-loop-all": {
+        "task": "apps.bingo.tasks.room_game_loop_all",
         "schedule": 10.0,
-        "args": (20,),
-    },
-    "room-30-loop": {
-        "task": "apps.bingo.tasks.room_game_loop",
-        "schedule": 10.0,
-        "args": (30,),
     },
 }
 

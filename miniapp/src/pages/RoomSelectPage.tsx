@@ -66,8 +66,7 @@ export function RoomSelectPage() {
     }
   }
 
-  const room20 = rooms.find((r) => r.bet_amount === 20)
-  const room30 = rooms.find((r) => r.bet_amount === 30)
+  const tenBirrRoom = rooms.find((r) => r.bet_amount === 10)
 
   return (
     <main className="mx-auto max-w-md p-6">
@@ -97,21 +96,15 @@ export function RoomSelectPage() {
               Complete phone registration in Telegram bot first: tap "Register Phone".
             </p>
           )}
-          <button
-            className="w-full rounded-xl bg-brand-500 px-4 py-4 text-left font-semibold hover:bg-brand-700 disabled:opacity-50"
-            onClick={() => room20 && navigate('/room/20/cartelas')}
-            disabled={!room20 || !phoneRegistered}
-          >
-            Room A - 20 Birr
-          </button>
-
-          <button
-            className="w-full rounded-xl bg-emerald-600 px-4 py-4 text-left font-semibold hover:bg-emerald-700 disabled:opacity-50"
-            onClick={() => room30 && navigate('/room/30/cartelas')}
-            disabled={!room30 || !phoneRegistered}
-          >
-            Room B - 30 Birr
-          </button>
+          {tenBirrRoom && (
+            <button
+              className="w-full rounded-xl bg-brand-500 px-4 py-4 text-left font-semibold hover:bg-brand-700"
+              onClick={() => navigate(`/room/${tenBirrRoom.id}/cartelas`)}
+            >
+              Room - 10 Birr
+            </button>
+          )}
+          {!tenBirrRoom && <p className="text-sm text-red-400">No 10 birr room available.</p>}
         </div>
       )}
 

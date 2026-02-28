@@ -2,8 +2,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardBu
 
 BALANCE_BTN = "Balance"
 REGISTER_PHONE_BTN = "Register Phone"
-JOIN_20_BTN = "Join 20 Birr"
-JOIN_30_BTN = "Join 30 Birr"
+JOIN_10_BTN = "Join 10 Birr"
 DEPOSIT_BTN = "Deposit"
 WITHDRAW_BTN = "Withdraw"
 HISTORY_BTN = "History"

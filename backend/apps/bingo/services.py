@@ -19,10 +19,10 @@ User = get_user_model()
 COUNTDOWN_SECONDS = 15
 
 
-def _broadcast(room_bet_amount: int, payload: dict):
+def _broadcast(room_id: int, payload: dict):
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(
-        f"room_{room_bet_amount}_lobby",
+        f"room_{room_id}_lobby",
         {
             "type": "game.event",
             "payload": payload,
@@ -91,7 +91,7 @@ def join_game(user_id: int, room_id: int, cartela_id: int) -> GamePlayer:
 
             start_game_after_countdown.apply_async(args=[game.id], countdown=COUNTDOWN_SECONDS)
             _broadcast(
-                room.bet_amount,
+                room.id,
                 {
                     "event": "countdown_started",
                     "seconds": COUNTDOWN_SECONDS,
@@ -199,7 +199,7 @@ def claim_bingo(user_id: int, game_id: int) -> dict:
                 payload={},
             )
             _broadcast(
-                game.room.bet_amount,
+                game.room_id,
                 {
                     "event": "player_removed",
                     "user_id": user_id,
@@ -241,7 +241,7 @@ def claim_bingo(user_id: int, game_id: int) -> dict:
                 )
 
                 _broadcast(
-                    game.room.bet_amount,
+                    game.room_id,
                     {
                         "event": "game_finished",
                         "winner": winner.username,
@@ -291,7 +291,7 @@ def claim_bingo(user_id: int, game_id: int) -> dict:
         )
 
         _broadcast(
-            game.room.bet_amount,
+            game.room_id,
             {
                 "event": "game_finished",
                 "winner": winner.username,

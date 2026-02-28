@@ -8,8 +8,8 @@ export function AppRouter() {
   return (
     <Routes>
       <Route path="/" element={<RoomSelectPage />} />
-      <Route path="/room/:roomBet/cartelas" element={<CartelaSelectPage />} />
-      <Route path="/room/:roomBet/play" element={<PlayPage />} />
+      <Route path="/room/:roomId/cartelas" element={<CartelaSelectPage />} />
+      <Route path="/room/:roomId/play" element={<PlayPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

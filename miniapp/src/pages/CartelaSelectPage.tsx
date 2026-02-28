@@ -11,8 +11,8 @@ import type { Cartela, Room } from '../types/bingo'
 
 export function CartelaSelectPage() {
   const navigate = useNavigate()
-  const { roomBet } = useParams<{ roomBet: string }>()
-  const bet = Number(roomBet)
+  const { roomId } = useParams<{ roomId: string }>()
+  const currentRoomId = Number(roomId)
 
   const { countdownLeft, onCountdownStarted, setRoom, setGame, setSelectedCartela, tickCountdown } = useGameStore()
   const { clear } = useAuthStore()
@@ -21,13 +21,15 @@ export function CartelaSelectPage() {
   const [cartelas, setCartelas] = useState<Cartela[]>([])
   const [selected, setSelected] = useState<Cartela | null>(null)
   const [gameId, setGameIdLocal] = useState<number | null>(null)
+  const [bet, setBet] = useState<number>(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const close = connectRoomSocket(bet)
+    if (!Number.isFinite(currentRoomId) || currentRoomId <= 0) return
+    const close = connectRoomSocket(currentRoomId)
     return () => close()
-  }, [bet])
+  }, [currentRoomId])
 
   useEffect(() => {
     const timer = setInterval(() => tickCountdown(), 1000)
@@ -40,12 +42,13 @@ export function CartelaSelectPage() {
       setError(null)
       try {
         const rooms = await getRooms()
-        const found = rooms.find((r) => r.bet_amount === bet)
+        const found = rooms.find((r) => r.id === currentRoomId)
         if (!found) {
           setError('Room not found')
           setLoading(false)
           return
         }
+        setBet(found.bet_amount)
         setRoomEntity(found)
         setRoom(found.bet_amount, found.id)
 
@@ -64,8 +67,8 @@ export function CartelaSelectPage() {
           if (existingCartela) {
             setSelectedCartela(existingCartela)
             setGame(seat.game_id)
-            localStorage.setItem(`selected_cartela_${bet}`, JSON.stringify(existingCartela))
-            navigate(`/room/${bet}/play`, { replace: true })
+            localStorage.setItem(`selected_cartela_room_${found.id}`, JSON.stringify(existingCartela))
+            navigate(`/room/${found.id}/play`, { replace: true })
             return
           }
         }
@@ -87,7 +90,7 @@ export function CartelaSelectPage() {
     }
 
     load()
-  }, [bet, setRoom, clear, navigate, onCountdownStarted])
+  }, [currentRoomId, setRoom, clear, navigate, onCountdownStarted, setGame, setSelectedCartela])
 
   const availableCount = useMemo(() => cartelas.filter((c) => !c.is_taken).length, [cartelas])
   async function continueToGame() {
@@ -106,8 +109,8 @@ export function CartelaSelectPage() {
       const joined = await joinGame(room.id, selected.id)
       setSelectedCartela(selected)
       setGame(joined.game_id)
-      localStorage.setItem(`selected_cartela_${bet}`, JSON.stringify(selected))
-      navigate(`/room/${bet}/play`)
+      localStorage.setItem(`selected_cartela_room_${room.id}`, JSON.stringify(selected))
+      navigate(`/room/${room.id}/play`)
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const detail = (err.response?.data as { detail?: string } | undefined)?.detail
@@ -138,7 +141,7 @@ export function CartelaSelectPage() {
 
       {selected && (
         <section className="mb-4 rounded-xl border border-cyan-200 bg-white p-4 shadow-sm">
-          <h2 className="mb-3 text-lg font-semibold text-cyan-800">Selected Cartela {selected.id}</h2>
+          <h2 className="mb-3 text-lg font-semibold text-cyan-800">Selected Cartela {selected.display_number}</h2>
           <CartelaBoard cartela={selected} />
           <button
             type="button"
@@ -166,7 +169,7 @@ export function CartelaSelectPage() {
                   : 'border-slate-300 bg-slate-300 text-slate-900 hover:bg-slate-400'
             }`}
           >
-            <p className="font-bold">{c.id}</p>
+            <p className="font-bold">{c.display_number}</p>
           </button>
         ))}
       </section>

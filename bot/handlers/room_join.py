@@ -3,7 +3,7 @@ from aiogram.filters import Command
 from aiogram.types import Message
 import httpx
 
-from keyboards.main import JOIN_20_BTN, JOIN_30_BTN, register_only_keyboard
+from keyboards.main import JOIN_10_BTN, register_only_keyboard
 from services.api_client import BackendClient
 from services.auth import ensure_access_token
 
@@ -55,21 +55,11 @@ async def _join(message: Message, bet_amount: int):
     )
 
 
-@router.message(Command("join20"))
-async def join20_cmd(message: Message):
-    await _join(message, 20)
+@router.message(Command("join10"))
+async def join10_cmd(message: Message):
+    await _join(message, 10)
 
 
-@router.message(F.text.casefold() == JOIN_20_BTN.casefold())
-async def join20_btn(message: Message):
-    await _join(message, 20)
-
-
-@router.message(Command("join30"))
-async def join30_cmd(message: Message):
-    await _join(message, 30)
-
-
-@router.message(F.text.casefold() == JOIN_30_BTN.casefold())
-async def join30_btn(message: Message):
-    await _join(message, 30)
+@router.message(F.text.casefold() == JOIN_10_BTN.casefold())
+async def join10_btn(message: Message):
+    await _join(message, 10)

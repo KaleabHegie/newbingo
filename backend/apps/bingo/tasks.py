@@ -11,10 +11,10 @@ from .models import Game, Room
 from .services import COUNTDOWN_SECONDS, can_start, call_next_number, get_or_create_waiting_game, start_game
 
 
-def _broadcast(room_bet_amount: int, payload: dict):
+def _broadcast(room_id: int, payload: dict):
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(
-        f"room_{room_bet_amount}_lobby",
+        f"room_{room_id}_lobby",
         {
             "type": "game.event",
             "payload": payload,
@@ -36,7 +36,7 @@ def start_game_after_countdown(game_id: int):
 
     start_game(game)
     _broadcast(
-        game.room.bet_amount,
+        game.room_id,
         {
             "event": "game_started",
             "game_id": game.id,
@@ -79,15 +79,17 @@ def run_game_calls(game_id: int):
 
         number = call_next_number(game)
         _broadcast(
-            game.room.bet_amount,
+            game.room_id,
             {"event": "number_called", "number": number, "called_numbers": game.called_numbers},
         )
         time.sleep(2)
 
 
 @shared_task
-def room_game_loop(room_bet_amount: int):
-    room = Room.objects.get(bet_amount=room_bet_amount)
+def room_game_loop(room_id: int):
+    room = Room.objects.filter(id=room_id, is_active=True).first()
+    if not room:
+        return
     game = Game.objects.filter(room=room, status="running").order_by("-id").first()
     if game:
         return
@@ -99,7 +101,7 @@ def room_game_loop(room_bet_amount: int):
             game.save(update_fields=["countdown_started_at"])
             start_game_after_countdown.apply_async(args=[game.id], countdown=COUNTDOWN_SECONDS)
             _broadcast(
-                room.bet_amount,
+                room.id,
                 {
                     "event": "countdown_started",
                     "seconds": COUNTDOWN_SECONDS,
@@ -109,7 +111,7 @@ def room_game_loop(room_bet_amount: int):
         elif timezone.now() >= game.countdown_started_at + timedelta(seconds=COUNTDOWN_SECONDS):
             start_game(game)
             _broadcast(
-                room.bet_amount,
+                room.id,
                 {
                     "event": "game_started",
                     "game_id": game.id,
@@ -117,3 +119,9 @@ def room_game_loop(room_bet_amount: int):
                 },
             )
             run_game_calls.delay(game.id)
+
+
+@shared_task
+def room_game_loop_all():
+    for room_id in Room.objects.filter(is_active=True).values_list("id", flat=True):
+        room_game_loop(room_id)

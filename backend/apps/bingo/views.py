@@ -18,7 +18,7 @@ class RoomListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        rooms = Room.objects.filter(is_active=True).order_by("bet_amount")
+        rooms = Room.objects.filter(is_active=True).order_by("bet_amount", "id")
         return Response(RoomSerializer(rooms, many=True).data)
 
 
@@ -62,12 +62,13 @@ class CartelaListView(APIView):
         data = [
             {
                 "id": c.id,
+                "display_number": idx + 1,
                 "room_id": room.id,
                 "numbers": c.numbers,
                 "predefined": c.predefined,
                 "is_taken": c.id in taken_ids,
             }
-            for c in cartelas
+            for idx, c in enumerate(cartelas)
         ]
         return Response({"game_id": game.id, "cartelas": data})
 

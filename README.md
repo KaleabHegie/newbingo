@@ -29,10 +29,9 @@ Production-oriented starter for:
 - `POST /api/bingo/join`
 
 ## WebSocket
-- `ws://localhost/ws/rooms/20/`
-- `ws://localhost/ws/rooms/30/`
+- `ws://localhost/ws/rooms/10/`
 
 ## Notes
 - Run migrations and seed are executed in backend entrypoint.
-- `seed_initial_data` creates 2 rooms and 200 cartelas per room.
+- `seed_initial_data` creates 1 room (10 birr) and 200 cartelas.
 - Game loop Celery task exists as scaffold; schedule room loop with beat in production.

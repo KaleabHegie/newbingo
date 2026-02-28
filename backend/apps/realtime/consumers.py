@@ -6,7 +6,7 @@ from channels.generic.websocket import AsyncJsonWebsocketConsumer
 class RoomConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
         self.room_id = self.scope["url_route"]["kwargs"]["room_id"]
-        if self.room_id not in {"20", "30"}:
+        if not self.room_id.isdigit():
             await self.close(code=4001)
             return
         self.group_name = f"room_{self.room_id}_lobby"

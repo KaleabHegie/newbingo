@@ -7,8 +7,8 @@ const defaultWsBase =
 
 const WS_BASE = (import.meta.env.VITE_WS_BASE as string) || defaultWsBase
 
-export function connectRoomSocket(roomBet: number): () => void {
-  const ws = new WebSocket(`${WS_BASE}/ws/rooms/${roomBet}/`)
+export function connectRoomSocket(roomId: number): () => void {
+  const ws = new WebSocket(`${WS_BASE}/ws/rooms/${roomId}/`)
 
   ws.onmessage = (ev) => {
     const payload = JSON.parse(ev.data)

@@ -26,7 +26,7 @@ def generate_cartela() -> list[list[int | str]]:
 
 
 class Command(BaseCommand):
-    help = "Seed default rooms and 200 cartelas per room"
+    help = "Seed one active 10 birr room with 400 cartelas"
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -37,21 +37,36 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         reset = bool(options.get("reset"))
-        for bet in (20, 30):
-            room, _ = Room.objects.get_or_create(bet_amount=bet, defaults={"total_cartelas": 200})
-            if reset:
-                Cartela.objects.filter(room=room).delete()
-            existing_cartelas = list(Cartela.objects.filter(room=room).order_by("id"))
-            for cartela in existing_cartelas:
-                cartela.numbers = generate_cartela()
-                cartela.predefined = True
-            if existing_cartelas:
-                Cartela.objects.bulk_update(existing_cartelas, ["numbers", "predefined"])
+        target_bet = 10
+        target_total_cartelas = 400
 
-            existing = len(existing_cartelas)
-            to_create = room.total_cartelas - existing
-            if to_create > 0:
-                Cartela.objects.bulk_create(
-                    [Cartela(room=room, numbers=generate_cartela(), predefined=True) for _ in range(to_create)]
-                )
-            self.stdout.write(self.style.SUCCESS(f"Room {bet} seeded. Cartelas: {room.cartelas.count()}"))
+        room = Room.objects.filter(bet_amount=target_bet).order_by("id").first()
+        if not room:
+            room = Room.objects.create(bet_amount=target_bet, total_cartelas=target_total_cartelas, is_active=True)
+
+        Room.objects.exclude(id=room.id).update(is_active=False)
+
+        room.total_cartelas = target_total_cartelas
+        room.is_active = True
+        room.save(update_fields=["total_cartelas", "is_active"])
+
+        if reset:
+            Cartela.objects.filter(room=room).delete()
+        existing_cartelas = list(Cartela.objects.filter(room=room).order_by("id"))
+        for cartela in existing_cartelas:
+            cartela.numbers = generate_cartela()
+            cartela.predefined = True
+        if existing_cartelas:
+            Cartela.objects.bulk_update(existing_cartelas, ["numbers", "predefined"])
+
+        existing = len(existing_cartelas)
+        to_create = room.total_cartelas - existing
+        if to_create > 0:
+            Cartela.objects.bulk_create(
+                [Cartela(room=room, numbers=generate_cartela(), predefined=True) for _ in range(to_create)]
+            )
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Room #{room.id} ({target_bet} birr) seeded. Cartelas: {room.cartelas.count()}"
+            )
+        )

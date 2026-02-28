@@ -13,13 +13,13 @@
 
 ## Core guarantees
 - Telegram-only login via initData verification.
-- Room isolation for 20/30 Birr via per-room channels and tasks.
+- Room isolation for 10 Birr via per-room channels and tasks.
 - Atomic balance updates and bet/win transaction ledger.
 - Server-side bingo validation and fake-claim removal.
 - DB constraints prevent duplicate cartela/user per game.
 
 ## Realtime event topology
-- WS groups: `room_20_lobby`, `room_30_lobby`
+- WS groups: `room_10_lobby`
 - Event examples: `number_called`, `game_started`, `game_finished`, `winner_announced`, `countdown_tick`
 
 ## Security baseline

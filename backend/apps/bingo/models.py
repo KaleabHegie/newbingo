@@ -6,7 +6,7 @@ from django.db import models
 
 
 class Room(models.Model):
-    bet_amount = models.PositiveIntegerField(unique=True)
+    bet_amount = models.PositiveIntegerField()
     total_cartelas = models.PositiveIntegerField(default=200)
     is_active = models.BooleanField(default=True)
 
