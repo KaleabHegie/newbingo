@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Any
 
@@ -8,6 +9,8 @@ BOT_API_KEY = os.getenv("BOT_API_KEY", "")
 
 
 class BackendClient:
+    import logging
+    log = logging.getLogger(__name__)
     async def bot_login(self, payload: dict[str, Any]) -> dict[str, Any]:
         async with httpx.AsyncClient(timeout=10) as client:
             r = await client.post(
@@ -15,6 +18,8 @@ class BackendClient:
                 json=payload,
                 headers={"X-BOT-API-KEY": BOT_API_KEY},
             )
+            if r.status_code >= 400:
+                log.error("bot-login failed: %s %s", r.status_code, r.text[:500])
             r.raise_for_status()
             return r.json()
 
