@@ -1,8 +1,8 @@
 import os
+import re
 
 from aiogram import F, Router
-from aiogram.filters import Command
-from aiogram.filters import CommandStart
+from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
 import httpx
 
@@ -71,6 +71,39 @@ async def register_phone_btn(message: Message):
     await _ask_phone(message)
 
 
+def _normalize_et_phone(raw: str) -> str:
+    """
+    Normalize Ethiopian phone numbers to E.164 format: +251XXXXXXXXX
+    Accepts inputs like:
+      - "+251 96 914 6494"
+      - "0969146494"
+      - "969146494"
+      - "+251969146494"
+    """
+    raw = (raw or "").strip()
+    digits = re.sub(r"\D", "", raw)
+
+    if not digits:
+        return raw  # fallback
+
+    # 0XXXXXXXXX -> 251XXXXXXXXX
+    if digits.startswith("0"):
+        digits = "251" + digits[1:]
+
+    # 9 digits without country code -> assume Ethiopia
+    if len(digits) == 9 and not digits.startswith("251"):
+        digits = "251" + digits
+
+    # If it already starts with 251 and is correct length, keep it
+    if digits.startswith("251"):
+        # Ethiopia mobile numbers are usually 9 digits after 251 => total 12 digits
+        # (We won't hard-fail here; backend will validate.)
+        return f"+{digits}"
+
+    # Fallback: just prefix +
+    return f"+{digits}"
+
+
 @router.message(F.contact)
 async def save_shared_contact(message: Message):
     if not message.contact:
@@ -79,21 +112,37 @@ async def save_shared_contact(message: Message):
     if message.contact.user_id and message.contact.user_id != message.from_user.id:
         await message.answer("Please share your own Telegram contact.")
         return
+
+    raw_phone = message.contact.phone_number or ""
+    phone_number = _normalize_et_phone(raw_phone)
+
     try:
         token = await ensure_access_token(message.from_user)
-        data = await client.register_phone(token, message.contact.phone_number)
+        data = await client.register_phone(token, phone_number)
         await message.answer(
             f"Phone registered: {data.get('phone_number')}\nYou can now join games.",
             reply_markup=main_menu_keyboard(MINI_APP_URL if MINI_APP_URL else None),
         )
     except httpx.HTTPStatusError as exc:
-        detail = "Unable to register phone."
+        detail = f"Unable to register phone (HTTP {exc.response.status_code})."
         try:
             payload = exc.response.json()
-            if isinstance(payload, dict) and payload.get("detail"):
-                detail = str(payload["detail"])
+            if isinstance(payload, dict):
+                if payload.get("detail"):
+                    detail = str(payload["detail"])
+                else:
+                    # Show DRF field errors, e.g. {"phone_number": ["Invalid ..."]}
+                    detail = "\n".join(
+                        f"{k}: {', '.join(v) if isinstance(v, list) else v}"
+                        for k, v in payload.items()
+                    )
         except Exception:
-            pass
+            # Last resort: include a snippet of response text
+            try:
+                detail = f"{detail}\n{exc.response.text[:200]}"
+            except Exception:
+                pass
+
         await message.answer(detail)
     except Exception:
         await message.answer("Unable to register phone right now. Please try again.")
