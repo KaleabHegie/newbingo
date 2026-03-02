@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 
-import { getRooms, loginTelegram, me } from '../services/api'
+import { getRooms, loginTelegram, me, setApiToken } from '../services/api'
 import { initTelegram } from '../services/telegram'
 import { useAuthStore } from '../store/auth.store'
 import type { Room } from '../types/bingo'
@@ -50,6 +50,7 @@ export function RoomSelectPage() {
       }
       const tokens = await loginTelegram(tg.initData)
       setToken(tokens.access)
+      setApiToken(tokens.access)  
       const data = await getRooms()
       setRooms(data)
       const profile = await me()
@@ -72,6 +73,7 @@ export function RoomSelectPage() {
     <main className="mx-auto max-w-md p-6">
       <h1 className="mb-2 text-2xl font-bold">Telegram Bingo</h1>
       <p className="mb-6 text-slate-300">Play only with Telegram login.</p>
+      
 
       {!isRegistered && (
         <div className="rounded-xl border border-slate-700 bg-slate-900 p-4">

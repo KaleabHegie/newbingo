@@ -28,6 +28,8 @@ services:
     depends_on:
       - postgres
       - redis
+    ports:
+      - "127.0.0.1:18000:8000"
 
   backend_ws:
     build: ./backend
@@ -38,6 +40,8 @@ services:
       - redis
     environment:
       RUN_MODE: daphne
+    ports:
+      - "127.0.0.1:18001:8001"
 
   worker:
     build: ./backend
@@ -68,18 +72,12 @@ services:
 
   miniapp:
     build: ./miniapp
-
-  nginx:
-    image: nginx:1.27-alpine
-    volumes:
-      - ./deploy/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
-      - "80:80"
-    depends_on:
-      - backend
-      - backend_ws
-      - miniapp
+      - "127.0.0.1:18080:80"
 
+
+  
 volumes:
   pg_data:
   redis_data:
+

@@ -10,7 +10,10 @@ export function initTelegram(): TelegramSession {
   WebApp.expand()
 
   return {
-    initData: WebApp.initData || '',
+     initData: WebApp.initData,           // string (what backend needs)
+    initDataUnsafe: WebApp.initDataUnsafe,
+    platform: WebApp.platform,
+    version: WebApp.version,
     userId: WebApp.initDataUnsafe?.user?.id ?? null,
   }
 }

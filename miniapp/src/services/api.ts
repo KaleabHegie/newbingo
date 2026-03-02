@@ -3,7 +3,7 @@ import axios from 'axios'
 import type { Cartela, Room } from '../types/bingo'
 
 const fallbackBase = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000'
-const baseURL = (import.meta.env.VITE_API_BASE as string) || fallbackBase
+const baseURL = (import.meta.env.VITE_API_BASE as string) || ""
 
 export const api = axios.create({ baseURL })
 
@@ -12,7 +12,7 @@ export function setApiToken(token: string) {
 }
 
 export async function loginTelegram(initData: string): Promise<{ access: string; refresh: string }> {
-  const { data } = await axios.post(`${baseURL}/api/auth/telegram-login`, { init_data: initData })
+  const { data } = await api.post(`/api/auth/telegram-login`, { init_data: initData })
   return data
 }
 
