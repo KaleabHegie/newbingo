@@ -11,3 +11,4 @@ gunicorn==23.0.0
 daphne==4.1.2
 structlog==25.1.0
 whitenoise==6.8.2
+django-cors-headers==4.3.1

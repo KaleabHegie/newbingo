@@ -18,6 +18,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "channels",
+    "corsheaders",
     "apps.users",
     "apps.wallet",
     "apps.bingo",
@@ -25,7 +26,18 @@ INSTALLED_APPS = [
     "apps.realtime",
 ]
 
+CORS_ALLOWED_ORIGINS = [
+    "https://app.africaclimatesummit.et",
+]
+
+from corsheaders.defaults import default_headers
+
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "authorization",
+]
+
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",

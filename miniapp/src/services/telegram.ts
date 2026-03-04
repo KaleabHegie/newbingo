@@ -3,6 +3,9 @@ import WebApp from '@twa-dev/sdk'
 export type TelegramSession = {
   initData: string
   userId: number | null
+  initDataUnsafe: unknown
+  platform: string
+  version: string
 }
 
 export function initTelegram(): TelegramSession {
@@ -10,10 +13,10 @@ export function initTelegram(): TelegramSession {
   WebApp.expand()
 
   return {
-     initData: WebApp.initData,           // string (what backend needs)
-    initDataUnsafe: WebApp.initDataUnsafe,
+    initData: WebApp.initData || '',
+    initDataUnsafe: WebApp.initDataUnsafe as unknown,
     platform: WebApp.platform,
     version: WebApp.version,
-    userId: WebApp.initDataUnsafe?.user?.id ?? null,
+    userId: (WebApp.initDataUnsafe as any)?.user?.id ?? null,
   }
 }

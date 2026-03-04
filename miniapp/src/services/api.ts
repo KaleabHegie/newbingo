@@ -2,12 +2,18 @@ import axios from 'axios'
 
 import type { Cartela, Room } from '../types/bingo'
 
+
 const fallbackBase = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000'
 const baseURL = (import.meta.env.VITE_API_BASE as string) || ""
 
 export const api = axios.create({ baseURL })
+console.log("Axios baseURL:", api.defaults.baseURL)
 
-export function setApiToken(token: string) {
+export function setApiToken(token: string | null) {
+  if (!token) {
+    delete api.defaults.headers.common.Authorization
+    return
+  }
   api.defaults.headers.common.Authorization = `Bearer ${token}`
 }
 
