@@ -18,6 +18,7 @@ export function PlayPage() {
   const [totalWin, setTotalWin] = useState<string>('0.00')
   const [claiming, setClaiming] = useState(false)
   const [info, setInfo] = useState<string | null>(null)
+  const [showWinnerModal, setShowWinnerModal] = useState(false)
 
   const {
     selectedCartela,
@@ -29,6 +30,8 @@ export function PlayPage() {
     gameFinished,
     winnerName,
     winnerPrize,
+    winnerCartelaNumber,
+    finishedCalledNumbers,
     removalReason,
     onCountdownStarted,
     setSelectedCartela,
@@ -85,16 +88,27 @@ export function PlayPage() {
   }, [currentRoomId, onCountdownStarted, setGame])
 
   useEffect(() => {
-    if (!gameFinished && !removalReason) return
-    const winnerText = winnerName ? `Winner: ${winnerName} (${winnerPrize ?? '0'} Birr)` : 'Round finished'
-    setInfo(removalReason || winnerText)
+    if (!removalReason) return
+    setInfo(removalReason)
     const timer = setTimeout(() => {
       clearRoundMessages()
       localStorage.removeItem(`selected_cartela_room_${currentRoomId}`)
       navigate(`/room/${currentRoomId}/cartelas`)
     }, 4000)
     return () => clearTimeout(timer)
-  }, [gameFinished, removalReason, winnerName, winnerPrize, currentRoomId, navigate, clearRoundMessages])
+  }, [removalReason, currentRoomId, navigate, clearRoundMessages])
+
+  useEffect(() => {
+    if (!gameFinished || removalReason) return
+    setShowWinnerModal(true)
+    const timer = setTimeout(() => {
+      setShowWinnerModal(false)
+      clearRoundMessages()
+      localStorage.removeItem(`selected_cartela_room_${currentRoomId}`)
+      navigate(`/room/${currentRoomId}/cartelas`)
+    }, 9000)
+    return () => clearTimeout(timer)
+  }, [gameFinished, removalReason, currentRoomId, navigate, clearRoundMessages])
 
   async function handleBingoClaim() {
     if (!gameId) {
@@ -179,6 +193,29 @@ export function PlayPage() {
         </div>
       </header>
       {info && <p className="mb-3 rounded bg-slate-800 px-3 py-2 text-sm text-amber-300">{info}</p>}
+      {showWinnerModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
+          <div className="w-full max-w-2xl rounded-2xl border border-amber-500/50 bg-slate-900 p-5 shadow-2xl">
+            <h2 className="text-2xl font-black text-amber-300">BINGO WINNER</h2>
+            <p className="mt-3 text-sm text-slate-300">
+              Username: <span className="font-semibold text-white">{winnerName ?? 'Unknown'}</span>
+            </p>
+            <p className="mt-1 text-sm text-slate-300">
+              Cartela Number:{' '}
+              <span className="font-semibold text-white">
+                {winnerCartelaNumber !== null ? winnerCartelaNumber : 'Unknown'}
+              </span>
+            </p>
+            <p className="mt-1 text-sm text-slate-300">
+              Prize: <span className="font-semibold text-emerald-400">{winnerPrize ?? '0'} Birr</span>
+            </p>
+            <p className="mt-4 text-xs uppercase tracking-wide text-cyan-300">Called Numbers</p>
+            <div className="mt-2 max-h-36 overflow-y-auto rounded-lg bg-slate-800 px-3 py-2 text-sm text-slate-100">
+              {finishedCalledNumbers.length ? finishedCalledNumbers.join(', ') : 'No numbers available'}
+            </div>
+          </div>
+        </div>
+      )}
 
       <section className="flex flex-row gap-4">
         <div className="rounded-xl border border-cyan-600/30 bg-slate-900 p-3" style={{ width: '60%' }}>

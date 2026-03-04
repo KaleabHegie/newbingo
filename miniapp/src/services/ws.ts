@@ -22,7 +22,12 @@ export function connectRoomSocket(roomId: number): () => void {
       useGameStore.getState().onNumberCalled(payload.number, payload.called_numbers ?? [])
     }
     if (payload.event === 'game_finished') {
-      useGameStore.getState().onGameFinished(payload.winner ?? null, payload.prize ?? null)
+      useGameStore.getState().onGameFinished(
+        payload.winner ?? null,
+        payload.prize ?? null,
+        payload.winner_cartela_number ?? null,
+        payload.called_numbers ?? []
+      )
     }
     if (payload.event === 'player_removed') {
       useGameStore.getState().onPlayerRemoved(payload.reason ?? 'Removed from game')

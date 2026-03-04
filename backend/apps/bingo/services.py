@@ -164,6 +164,9 @@ def validate_cartela_win(cartela_numbers: list[list[int | str]], called_numbers:
         return True
     return False
 
+def get_cartela_display_number(room_id: int, cartela_id: int) -> int:
+    return Cartela.objects.filter(room_id=room_id, id__lte=cartela_id).count()
+
 
 def claim_bingo(user_id: int, game_id: int) -> dict:
     with transaction.atomic():
@@ -214,6 +217,7 @@ def claim_bingo(user_id: int, game_id: int) -> dict:
             if game.status == "running" and remaining_players.count() == 1:
                 winner_gp = remaining_players.first()
                 winner = User.objects.select_for_update().get(id=winner_gp.user_id)
+                winner_cartela_number = get_cartela_display_number(game.room_id, winner_gp.cartela_id)
                 prize, deduction = calculate_prize(game.total_players, Decimal(game.room.bet_amount))
                 winner.balance = F("balance") + prize
                 winner.save(update_fields=["balance"])
@@ -246,7 +250,9 @@ def claim_bingo(user_id: int, game_id: int) -> dict:
                         "event": "game_finished",
                         "winner": winner.username,
                         "winner_id": winner.id,
+                        "winner_cartela_number": winner_cartela_number,
                         "prize": str(prize),
+                        "called_numbers": game.called_numbers,
                         "reason": "Last remaining player",
                     },
                 )
@@ -264,6 +270,7 @@ def claim_bingo(user_id: int, game_id: int) -> dict:
             return {"valid": False, "reason": "Fake bingo. Player removed."}
 
         prize, deduction = calculate_prize(game.total_players, Decimal(game.room.bet_amount))
+        winner_cartela_number = get_cartela_display_number(game.room_id, gp.cartela_id)
         winner = User.objects.select_for_update().get(id=user_id)
         winner.balance = F("balance") + prize
         winner.save(update_fields=["balance"])
@@ -296,7 +303,9 @@ def claim_bingo(user_id: int, game_id: int) -> dict:
                 "event": "game_finished",
                 "winner": winner.username,
                 "winner_id": winner.id,
+                "winner_cartela_number": winner_cartela_number,
                 "prize": str(prize),
+                "called_numbers": game.called_numbers,
                 "reason": "Bingo claimed",
             },
         )

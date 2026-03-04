@@ -15,6 +15,8 @@ type GameState = {
   gameFinished: boolean
   winnerName: string | null
   winnerPrize: string | null
+  winnerCartelaNumber: number | null
+  finishedCalledNumbers: number[]
   removalReason: string | null
   setRoom: (bet: number, roomId: number) => void
   setGame: (gameId: number) => void
@@ -22,7 +24,12 @@ type GameState = {
   onNumberCalled: (n: number, called: number[]) => void
   onCountdownStarted: (startsAt: string, seconds: number) => void
   onGameStarted: (gameId: number) => void
-  onGameFinished: (winner: string | null, prize: string | null) => void
+  onGameFinished: (
+    winner: string | null,
+    prize: string | null,
+    winnerCartelaNumber: number | null,
+    calledNumbers: number[]
+  ) => void
   onPlayerRemoved: (reason: string) => void
   clearRoundMessages: () => void
   tickCountdown: () => void
@@ -42,6 +49,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   gameFinished: false,
   winnerName: null,
   winnerPrize: null,
+  winnerCartelaNumber: null,
+  finishedCalledNumbers: [],
   removalReason: null,
   setRoom: (bet, roomId) =>
     set({
@@ -55,6 +64,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       gameFinished: false,
       winnerName: null,
       winnerPrize: null,
+      winnerCartelaNumber: null,
+      finishedCalledNumbers: [],
       removalReason: null,
       gameId: null,
     }),
@@ -69,6 +80,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       gameFinished: false,
       winnerName: null,
       winnerPrize: null,
+      winnerCartelaNumber: null,
+      finishedCalledNumbers: [],
       removalReason: null,
     }),
   onCountdownStarted: (startsAt, seconds) => set({ countdownEndsAt: startsAt, countdownLeft: seconds }),
@@ -78,6 +91,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       gameFinished: false,
       winnerName: null,
       winnerPrize: null,
+      winnerCartelaNumber: null,
+      finishedCalledNumbers: [],
       removalReason: null,
       countdownEndsAt: null,
       countdownLeft: null,
@@ -85,9 +100,24 @@ export const useGameStore = create<GameState>((set, get) => ({
       lastNumber: null,
       markedNumbers: [],
     }),
-  onGameFinished: (winner, prize) => set({ gameFinished: true, winnerName: winner, winnerPrize: prize }),
+  onGameFinished: (winner, prize, winnerCartelaNumber, calledNumbers) =>
+    set({
+      gameFinished: true,
+      winnerName: winner,
+      winnerPrize: prize,
+      winnerCartelaNumber,
+      finishedCalledNumbers: calledNumbers,
+    }),
   onPlayerRemoved: (reason) => set({ removalReason: reason }),
-  clearRoundMessages: () => set({ gameFinished: false, winnerName: null, winnerPrize: null, removalReason: null }),
+  clearRoundMessages: () =>
+    set({
+      gameFinished: false,
+      winnerName: null,
+      winnerPrize: null,
+      winnerCartelaNumber: null,
+      finishedCalledNumbers: [],
+      removalReason: null,
+    }),
   tickCountdown: () => {
     const state = get()
     if (!state.countdownEndsAt) return
