@@ -46,6 +46,14 @@ async def start_cmd(message: Message):
         await message.answer("Tap to open the game interface:", reply_markup=miniapp_keyboard(MINI_APP_URL))
 
 
+@router.message(Command("chatid"))
+async def chat_id_cmd(message: Message):
+    chat = message.chat
+    await message.answer(
+        f"Chat ID: {chat.id}\nChat type: {chat.type}\nTitle: {chat.title or '-'}"
+    )
+
+
 @router.message(F.text.casefold() == MINI_APP_BTN.casefold())
 async def open_miniapp_btn(message: Message):
     if not MINI_APP_URL:

@@ -80,7 +80,7 @@ async def submit_deposit_start(message: Message, state: FSMContext):
 async def submit_deposit_amount(message: Message, state: FSMContext):
     await state.update_data(amount=(message.text or "").strip())
     await state.set_state(DepositFlow.reference)
-    await message.answer("Enter Telebirr transaction reference:")
+    await message.answer("Enter SMS from Telebirr:")
 
 
 @router.message(DepositFlow.reference)

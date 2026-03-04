@@ -27,7 +27,12 @@ INSTALLED_APPS = [
 ]
 
 CORS_ALLOWED_ORIGINS = [
-    "https://app.africaclimatesummit.et",
+    origin.strip()
+    for origin in os.getenv(
+        "CORS_ALLOWED_ORIGINS",
+        "https://app.africaclimatesummit.et,http://localhost:18080,http://127.0.0.1:18080",
+    ).split(",")
+    if origin.strip()
 ]
 
 from corsheaders.defaults import default_headers
@@ -133,6 +138,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_INITDATA_MAX_AGE_SECONDS = int(os.getenv("TELEGRAM_INITDATA_MAX_AGE_SECONDS", "3600"))
 BOT_API_KEY = os.getenv("BOT_API_KEY", "")
+TELEGRAM_NOTIFY_CHAT_ID = os.getenv("TELEGRAM_NOTIFY_CHAT_ID", "")
 WELCOME_BONUS_BIRR = os.getenv("WELCOME_BONUS_BIRR", "0")
 
 TELEBIRR_NUMBER = os.getenv("TELEBIRR_NUMBER", "0969146494")

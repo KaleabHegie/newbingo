@@ -1,6 +1,9 @@
 import uuid
 from datetime import timedelta
 from decimal import Decimal
+import logging
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -11,6 +14,7 @@ from django.utils import timezone
 from .models import DepositRequest, Transaction, WalletAuditLog, WithdrawRequest
 
 User = get_user_model()
+log = logging.getLogger(__name__)
 
 
 class WalletError(Exception):
@@ -64,6 +68,22 @@ def _audit(action: str, payload: dict, user: User | None = None, request_ip: str
     )
 
 
+def _send_telegram_notification(message: str) -> None:
+    token = str(getattr(settings, "TELEGRAM_BOT_TOKEN", "") or "").strip()
+    chat_id = str(getattr(settings, "TELEGRAM_NOTIFY_CHAT_ID", "") or "").strip()
+    if not token or not chat_id:
+        return
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    payload = urlencode({"chat_id": chat_id, "text": message, "disable_web_page_preview": "true"}).encode()
+    req = Request(url, data=payload, headers={"Content-Type": "application/x-www-form-urlencoded"}, method="POST")
+    try:
+        with urlopen(req, timeout=8) as resp:
+            if getattr(resp, "status", 200) >= 400:
+                log.warning("telegram notify failed with status %s", getattr(resp, "status", "unknown"))
+    except Exception as exc:
+        log.warning("telegram notify failed: %s", exc)
+
+
 def debit_for_bet(user_id: int, amount: Decimal) -> User:
     with transaction.atomic():
         user = apply_balance_delta(user_id=user_id, delta=-amount)
@@ -112,6 +132,10 @@ def submit_deposit_request(
             user=user,
             request_ip=request_ip,
         )
+        _send_telegram_notification(
+            f"Deposit submitted\nUser: {user.username}\nTelegram ID: {user.telegram_id}\n"
+            f"Amount: {amount} Birr\nRequest ID: {req.id}\nStatus: PENDING"
+        )
         return req
 
 
@@ -139,6 +163,10 @@ def approve_deposit_request(*, request_id: int, admin_user: User, note: str = ""
             user=req.user,
             request_ip=req.request_ip,
         )
+        _send_telegram_notification(
+            f"Deposit approved\nUser: {req.user.username}\nTelegram ID: {req.user.telegram_id}\n"
+            f"Amount: {req.amount} Birr\nRequest ID: {req.id}"
+        )
         return req
 
 
@@ -157,6 +185,10 @@ def reject_deposit_request(*, request_id: int, admin_user: User, note: str = "")
             {"deposit_request_id": req.id, "amount": str(req.amount)},
             user=req.user,
             request_ip=req.request_ip,
+        )
+        _send_telegram_notification(
+            f"Deposit rejected\nUser: {req.user.username}\nTelegram ID: {req.user.telegram_id}\n"
+            f"Amount: {req.amount} Birr\nRequest ID: {req.id}"
         )
         return req
 
@@ -222,6 +254,10 @@ def submit_withdraw_request(
             user=user,
             request_ip=request_ip,
         )
+        _send_telegram_notification(
+            f"Withdraw submitted\nUser: {user.username}\nTelegram ID: {user.telegram_id}\n"
+            f"Amount: {amount} Birr\nRequest ID: {req.id}\nStatus: PENDING"
+        )
         return req
 
 
@@ -249,6 +285,10 @@ def mark_withdraw_paid(*, request_id: int, admin_user: User, note: str = "") -> 
             user=req.user,
             request_ip=req.request_ip,
         )
+        _send_telegram_notification(
+            f"Withdraw paid\nUser: {req.user.username}\nTelegram ID: {req.user.telegram_id}\n"
+            f"Amount: {req.amount} Birr\nRequest ID: {req.id}"
+        )
         return req
 
 
@@ -267,5 +307,9 @@ def reject_withdraw_request(*, request_id: int, admin_user: User, note: str = ""
             {"withdraw_request_id": req.id, "amount": str(req.amount)},
             user=req.user,
             request_ip=req.request_ip,
+        )
+        _send_telegram_notification(
+            f"Withdraw rejected\nUser: {req.user.username}\nTelegram ID: {req.user.telegram_id}\n"
+            f"Amount: {req.amount} Birr\nRequest ID: {req.id}"
         )
         return req
