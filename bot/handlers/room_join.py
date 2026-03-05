@@ -5,7 +5,7 @@ import httpx
 
 from keyboards.main import JOIN_10_BTN, register_only_keyboard
 from services.api_client import BackendClient
-from services.auth import ensure_access_token
+from services.auth import call_with_reauth
 
 router = Router()
 client = BackendClient()
@@ -13,28 +13,33 @@ client = BackendClient()
 
 async def _join(message: Message, bet_amount: int):
     try:
-        token = await ensure_access_token(message.from_user)
-        profile = await client.me(token)
+        profile = await call_with_reauth(message.from_user, client.me)
         if not profile.get("phone_registered"):
             await message.answer(
                 "Please register your phone first using the 'Register Phone' button.",
                 reply_markup=register_only_keyboard(),
             )
             return
-        rooms = await client.rooms(token)
+        rooms = await call_with_reauth(message.from_user, client.rooms)
         room = next((r for r in rooms if r["bet_amount"] == bet_amount), None)
         if not room:
             await message.answer("Room not available")
             return
 
-        cartelas_payload = await client.cartelas(token, room_id=room["id"])
+        cartelas_payload = await call_with_reauth(
+            message.from_user,
+            lambda token: client.cartelas(token, room_id=room["id"]),
+        )
         available = [c for c in cartelas_payload.get("cartelas", []) if not c.get("is_taken")]
         if not available:
             await message.answer("No cartelas available right now. Please wait for the next game.")
             return
 
         selected = available[0]
-        result = await client.join_room(token, room_id=room["id"], cartela_id=selected["id"])
+        result = await call_with_reauth(
+            message.from_user,
+            lambda token: client.join_room(token, room_id=room["id"], cartela_id=selected["id"]),
+        )
     except httpx.HTTPStatusError as exc:
         detail = "Unable to join right now. Check balance and try again."
         try:
@@ -51,7 +56,7 @@ async def _join(message: Message, bet_amount: int):
     await message.answer(
         f"Joined {bet_amount} Birr room.\n"
         f"Game #{result['game_id']} | Cartela {selected['id']}\n"
-        "Use the Open Mini App button to play."
+        "Use the mini app link in chat to play."
     )
 
 

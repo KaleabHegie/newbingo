@@ -4,7 +4,7 @@ import axios from 'axios'
 
 import { CartelaBoard } from '../components/CartelaBoard'
 import { Flashboard } from '../features/flashboard/Flashboard'
-import { claimBingo, getBalance, getRoomSummary, getRooms } from '../services/api'
+import { claimBingo, getBalance, getCartelas, getRoomSummary, getRooms } from '../services/api'
 import { connectRoomSocket } from '../services/ws'
 import { useGameStore } from '../store/game.store'
 import type { Cartela } from '../types/bingo'
@@ -19,6 +19,7 @@ export function PlayPage() {
   const [claiming, setClaiming] = useState(false)
   const [info, setInfo] = useState<string | null>(null)
   const [showWinnerModal, setShowWinnerModal] = useState(false)
+  const [winnerCartela, setWinnerCartela] = useState<Cartela | null>(null)
 
   const {
     selectedCartela,
@@ -109,6 +110,29 @@ export function PlayPage() {
     }, 9000)
     return () => clearTimeout(timer)
   }, [gameFinished, removalReason, currentRoomId, navigate, clearRoundMessages])
+
+  useEffect(() => {
+    let active = true
+
+    async function loadWinnerCartela() {
+      if (!showWinnerModal || !winnerCartelaNumber || !Number.isFinite(currentRoomId) || currentRoomId <= 0) {
+        if (active) setWinnerCartela(null)
+        return
+      }
+      try {
+        const { cartelas } = await getCartelas(currentRoomId)
+        const found = cartelas.find((c) => c.display_number === winnerCartelaNumber) ?? null
+        if (active) setWinnerCartela(found)
+      } catch {
+        if (active) setWinnerCartela(null)
+      }
+    }
+
+    loadWinnerCartela()
+    return () => {
+      active = false
+    }
+  }, [showWinnerModal, winnerCartelaNumber, currentRoomId])
 
   async function handleBingoClaim() {
     if (!gameId) {
@@ -209,9 +233,27 @@ export function PlayPage() {
             <p className="mt-1 text-sm text-slate-300">
               Prize: <span className="font-semibold text-emerald-400">{winnerPrize ?? '0'} Birr</span>
             </p>
+            <p className="mt-4 text-xs uppercase tracking-wide text-cyan-300">Winner Cartela</p>
+            <div className="mt-2">
+              {winnerCartela ? (
+                <CartelaBoard cartela={winnerCartela} markedNumbers={finishedCalledNumbers} />
+              ) : (
+                <div className="rounded-lg bg-slate-800 px-3 py-2 text-sm text-slate-100">
+                  Winner cartela not available
+                </div>
+              )}
+            </div>
             <p className="mt-4 text-xs uppercase tracking-wide text-cyan-300">Called Numbers</p>
-            <div className="mt-2 max-h-36 overflow-y-auto rounded-lg bg-slate-800 px-3 py-2 text-sm text-slate-100">
-              {finishedCalledNumbers.length ? finishedCalledNumbers.join(', ') : 'No numbers available'}
+            <div className="mt-2 flex max-h-32 flex-wrap gap-2 overflow-y-auto rounded-lg bg-slate-800 p-3">
+              {finishedCalledNumbers.length ? (
+                finishedCalledNumbers.map((n) => (
+                  <span key={n} className="rounded-md bg-green-500/90 px-2 py-1 text-xs font-bold text-white">
+                    {n}
+                  </span>
+                ))
+              ) : (
+                <span className="text-sm text-slate-100">No numbers available</span>
+              )}
             </div>
           </div>
         </div>

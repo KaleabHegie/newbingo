@@ -7,7 +7,7 @@ from aiogram.types import Message
 
 from keyboards.main import BALANCE_BTN, DEPOSIT_BTN, HISTORY_BTN, WITHDRAW_BTN
 from services.api_client import BackendClient
-from services.auth import ensure_access_token
+from services.auth import call_with_reauth
 
 router = Router()
 client = BackendClient()
@@ -27,8 +27,7 @@ class WithdrawFlow(StatesGroup):
 
 async def _balance(message: Message):
     try:
-        token = await ensure_access_token(message.from_user)
-        data = await client.get_balance(token)
+        data = await call_with_reauth(message.from_user, client.get_balance)
     except Exception:
         await message.answer("Unable to fetch balance now. Please try again.")
         return
@@ -47,8 +46,7 @@ async def balance_btn(message: Message):
 
 async def _deposit(message: Message):
     try:
-        token = await ensure_access_token(message.from_user)
-        info = await client.deposit_info(token)
+        info = await call_with_reauth(message.from_user, client.deposit_info)
     except Exception:
         await message.answer("Unable to load deposit instructions right now.")
         return
@@ -97,10 +95,12 @@ async def submit_deposit_sender_phone(message: Message, state: FSMContext):
     reference = str(data.get("reference", "")).strip()
     sender_phone = (message.text or "").strip()
     try:
-        token = await ensure_access_token(message.from_user)
-        req = await client.submit_deposit(token, amount=amount, telebirr_reference=reference, sender_phone=sender_phone)
+        req = await call_with_reauth(
+            message.from_user,
+            lambda token: client.submit_deposit(token, amount=amount, telebirr_reference=reference, sender_phone=sender_phone),
+        )
         try:
-            info = await client.deposit_info(token)
+            info = await call_with_reauth(message.from_user, client.deposit_info)
         except Exception:
             info = {}
         telebirr_number = info.get("telebirr_number", "0969146494")
@@ -132,8 +132,7 @@ async def submit_deposit_sender_phone(message: Message, state: FSMContext):
 @router.message(Command("deposit_status"))
 async def deposit_status(message: Message):
     try:
-        token = await ensure_access_token(message.from_user)
-        rows = await client.deposit_status(token)
+        rows = await call_with_reauth(message.from_user, client.deposit_status)
     except Exception:
         await message.answer("Unable to load deposit status.")
         return
@@ -185,8 +184,10 @@ async def withdraw_holder_name(message: Message, state: FSMContext):
     phone = str(data.get("telebirr_phone", "")).strip()
     holder = (message.text or "").strip()
     try:
-        token = await ensure_access_token(message.from_user)
-        req = await client.submit_withdraw(token, amount=amount, telebirr_phone=phone, account_holder_name=holder)
+        req = await call_with_reauth(
+            message.from_user,
+            lambda token: client.submit_withdraw(token, amount=amount, telebirr_phone=phone, account_holder_name=holder),
+        )
         await message.answer(
             f"Withdraw submitted.\nRequest #{req['id']}\nStatus: {req['status']}\n"
             "Admin will process manually via Telebirr."
@@ -209,8 +210,7 @@ async def withdraw_holder_name(message: Message, state: FSMContext):
 @router.message(Command("withdraw_status"))
 async def withdraw_status(message: Message):
     try:
-        token = await ensure_access_token(message.from_user)
-        rows = await client.withdraw_status(token)
+        rows = await call_with_reauth(message.from_user, client.withdraw_status)
     except Exception:
         await message.answer("Unable to load withdraw status.")
         return
@@ -228,8 +228,7 @@ async def withdraw_status(message: Message):
 
 async def _transactions(message: Message):
     try:
-        token = await ensure_access_token(message.from_user)
-        txns = await client.transactions(token)
+        txns = await call_with_reauth(message.from_user, client.transactions)
     except Exception:
         await message.answer("Unable to load transaction history right now.")
         return

@@ -15,7 +15,7 @@ from keyboards.main import (
     register_only_keyboard,
 )
 from services.api_client import BackendClient
-from services.auth import ensure_access_token
+from services.auth import call_with_reauth
 
 router = Router()
 MINI_APP_URL = os.getenv("MINI_APP_URL", "")
@@ -25,8 +25,7 @@ client = BackendClient()
 @router.message(CommandStart())
 async def start_cmd(message: Message):
     try:
-        token = await ensure_access_token(message.from_user)
-        profile = await client.me(token)
+        profile = await call_with_reauth(message.from_user, client.me)
         is_registered = bool(profile.get("phone_registered"))
     except Exception:
         is_registered = False
@@ -125,8 +124,10 @@ async def save_shared_contact(message: Message):
     phone_number = _normalize_et_phone(raw_phone)
 
     try:
-        token = await ensure_access_token(message.from_user)
-        data = await client.register_phone(token, phone_number)
+        data = await call_with_reauth(
+            message.from_user,
+            lambda token: client.register_phone(token, phone_number),
+        )
         await message.answer(
             f"Phone registered: {data.get('phone_number')}\nYou can now join games.",
             reply_markup=main_menu_keyboard(MINI_APP_URL if MINI_APP_URL else None),

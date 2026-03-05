@@ -26,20 +26,34 @@ INSTALLED_APPS = [
     "apps.realtime",
 ]
 
+
+
 CORS_ALLOWED_ORIGINS = [
     origin.strip()
     for origin in os.getenv(
         "CORS_ALLOWED_ORIGINS",
-        "https://app.africaclimatesummit.et,http://localhost:18080,http://127.0.0.1:18080",
+        "https://app.kaleab.com.et,http://localhost:18080,http://127.0.0.1:18080",
     ).split(",")
     if origin.strip()
 ]
+
+
+
+CORS_ORIGIN_WHITELIST = tuple(CORS_ALLOWED_ORIGINS)
+
+CORS_URLS_REGEX = r"^/api/.*$"
+
+CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+
+CORS_ALLOW_CREDENTIALS = True
 
 from corsheaders.defaults import default_headers
 
 CORS_ALLOW_HEADERS = list(default_headers) + [
     "authorization",
 ]
+
+CORS_ALLOW_ALL_ORIGINS = True
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",

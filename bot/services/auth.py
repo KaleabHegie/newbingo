@@ -1,4 +1,5 @@
 from aiogram.types import User as TgUser
+import httpx
 
 from services.api_client import BackendClient
 from services.auth_store import TOKENS
@@ -20,3 +21,15 @@ async def ensure_access_token(tg_user: TgUser) -> str:
     tokens = await client.bot_login(payload)
     TOKENS[tg_user.id] = tokens["access"]
     return TOKENS[tg_user.id]
+
+
+async def call_with_reauth(tg_user: TgUser, fn):
+    token = await ensure_access_token(tg_user)
+    try:
+        return await fn(token)
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code != 401:
+            raise
+        TOKENS.pop(tg_user.id, None)
+        token = await ensure_access_token(tg_user)
+        return await fn(token)

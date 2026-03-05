@@ -21,8 +21,6 @@ def main_menu_keyboard(miniapp_url: str | None = None) -> ReplyKeyboardMarkup:
     menu_rows: list[list[KeyboardButton]] = [
         [KeyboardButton(text=BALANCE_BTN), KeyboardButton(text=HISTORY_BTN)],
     ]
-    if miniapp_url:
-        menu_rows.append([KeyboardButton(text=MINI_APP_BTN, web_app=WebAppInfo(url=miniapp_url))])
     menu_rows.append([KeyboardButton(text=DEPOSIT_BTN), KeyboardButton(text=WITHDRAW_BTN)])
 
     return ReplyKeyboardMarkup(
