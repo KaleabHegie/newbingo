@@ -9,12 +9,16 @@ import type { Room } from '../types/bingo'
 
 export function RoomSelectPage() {
   const navigate = useNavigate()
-  const { isRegistered, setToken, clear } = useAuthStore()
+  const { isRegistered, setToken, clear, hydrate } = useAuthStore()
 
   const [rooms, setRooms] = useState<Room[]>([])
   const [phoneRegistered, setPhoneRegistered] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    hydrate()
+  }, [hydrate])
 
   useEffect(() => {
     if (!isRegistered) return
@@ -31,12 +35,19 @@ export function RoomSelectPage() {
       .catch(async (err) => {
         if (axios.isAxiosError(err) && err.response?.status === 401) {
           clear()
-          setError('Session expired. Register again with Telegram.')
+          setError('ሴሽኑ አልቋል። በቴሌግራም እንደገና ይግቡ።')
           return
         }
-        setError('Unable to load rooms')
+        setError('ሩሞችን መጫን አልተቻለም።')
       })
   }, [isRegistered, clear])
+
+  useEffect(() => {
+    if (!isRegistered || !phoneRegistered || rooms.length === 0) return
+    const tenBirrRoom = rooms.find((r) => r.bet_amount === 10)
+    const targetRoom = tenBirrRoom ?? rooms[0]
+    if (targetRoom) navigate(`/room/${targetRoom.id}/cartelas`, { replace: true })
+  }, [isRegistered, phoneRegistered, rooms, navigate])
 
   async function handleTelegramRegister() {
     setLoading(true)
@@ -44,7 +55,7 @@ export function RoomSelectPage() {
     try {
       const tg = initTelegram()
       if (!tg.initData) {
-        setError('Open this app from Telegram to register with your Telegram account.')
+        setError('እባክዎ ይህን ሚኒ አፕ ከቴሌግራም ውስጥ ይክፈቱ።')
         setLoading(false)
         return
       }
@@ -58,9 +69,9 @@ export function RoomSelectPage() {
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const detail = (err.response?.data as { detail?: string } | undefined)?.detail
-        setError(detail || 'Telegram registration failed. Please retry from Telegram.')
+        setError(detail || 'የቴሌግራም ምዝገባ አልተሳካም። እንደገና ይሞክሩ።')
       } else {
-        setError('Telegram registration failed. Please retry from Telegram.')
+        setError('የቴሌግራም ምዝገባ አልተሳካም። እንደገና ይሞክሩ።')
       }
     } finally {
       setLoading(false)
@@ -71,14 +82,14 @@ export function RoomSelectPage() {
 
   return (
     <main className="mx-auto max-w-md p-6">
-      <h1 className="mb-2 text-2xl font-bold">Telegram Bingo</h1>
-      <p className="mb-6 text-slate-300">Play only with Telegram login.</p>
+      <h1 className="mb-2 text-2xl font-bold">ቴሌግራም ቢንጎ</h1>
+      <p className="mb-6 text-slate-300">በቴሌግራም መግቢያ ብቻ ይጫወቱ።</p>
       
 
       {!isRegistered && (
         <div className="rounded-xl border border-slate-700 bg-slate-900 p-4">
           <p className="mb-3 text-sm text-slate-300">
-            If you are not registered yet, register now with Telegram before entering the game.
+            እስካሁን ካልተመዘገቡ ወደ ጨዋታ ከመግባትዎ በፊት በቴሌግራም ይመዝገቡ።
           </p>
           <button
             type="button"
@@ -86,7 +97,7 @@ export function RoomSelectPage() {
             onClick={handleTelegramRegister}
             className="w-full rounded-xl bg-brand-500 px-4 py-3 font-semibold hover:bg-brand-700 disabled:opacity-60"
           >
-            {loading ? 'Registering...' : 'Login with Telegram'}
+            {loading ? 'በመመዝገብ ላይ...' : 'በቴሌግራም ይግቡ'}
           </button>
         </div>
       )}
@@ -95,7 +106,7 @@ export function RoomSelectPage() {
         <div className="space-y-3">
           {!phoneRegistered && (
             <p className="rounded-xl border border-amber-500/50 bg-amber-900/30 px-3 py-2 text-sm text-amber-200">
-              Complete phone registration in Telegram bot first: tap "Register Phone".
+              በመጀመሪያ በቴሌግራም ቦት ስልክ ቁጥርዎን ያስመዝግቡ: "ስልክ ቁጥር መመዝገብ" ይጫኑ።
             </p>
           )}
           {tenBirrRoom && (
@@ -103,10 +114,10 @@ export function RoomSelectPage() {
               className="w-full rounded-xl bg-brand-500 px-4 py-4 text-left font-semibold hover:bg-brand-700"
               onClick={() => navigate(`/room/${tenBirrRoom.id}/cartelas`)}
             >
-              Room - 10 Birr
+              ሩም - 10 ብር
             </button>
           )}
-          {!tenBirrRoom && <p className="text-sm text-red-400">No 10 birr room available.</p>}
+          {!tenBirrRoom && <p className="text-sm text-red-400">10 ብር ሩም አልተገኘም።</p>}
         </div>
       )}
 

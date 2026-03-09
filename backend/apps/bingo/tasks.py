@@ -1,9 +1,13 @@
 import time
 from datetime import timedelta
+import json
+import urllib.request
+import urllib.error
 
 from asgiref.sync import async_to_sync
 from celery import shared_task
 from channels.layers import get_channel_layer
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
@@ -22,6 +26,39 @@ def _broadcast(room_id: int, payload: dict):
     )
 
 
+def _send_player_notification(telegram_id: int, text: str):
+    token = str(getattr(settings, "TELEGRAM_BOT_TOKEN", "") or "").strip()
+    if not token:
+        return
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    payload = json.dumps({"chat_id": int(telegram_id), "text": text}).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        urllib.request.urlopen(req, timeout=8).read()
+    except (urllib.error.URLError, ValueError, OSError):
+        # Notification failures should never block game flow.
+        pass
+
+
+def _notify_game_started_players(game: Game):
+    players = (
+        game.players.select_related("user")
+        .filter(removed_for_fake_bingo=False)
+        .exclude(user__telegram_id__isnull=True)
+    )
+    room_bet = game.room.bet_amount
+    for gp in players:
+        _send_player_notification(
+            int(gp.user.telegram_id),
+            f"ጨዋታ #{game.id} ተጀምሯል። ሩም: {room_bet} ብር። ወደ ሚኒ አፕ ይግቡ እና ይጫወቱ።",
+        )
+
+
 @shared_task
 def start_game_after_countdown(game_id: int):
     game = Game.objects.select_related("room").filter(id=game_id).first()
@@ -35,6 +72,7 @@ def start_game_after_countdown(game_id: int):
         return
 
     start_game(game)
+    _notify_game_started_players(game)
     _broadcast(
         game.room_id,
         {
@@ -110,6 +148,7 @@ def room_game_loop(room_id: int):
             )
         elif timezone.now() >= game.countdown_started_at + timedelta(seconds=COUNTDOWN_SECONDS):
             start_game(game)
+            _notify_game_started_players(game)
             _broadcast(
                 room.id,
                 {

@@ -13,7 +13,7 @@ export function connectRoomSocket(roomId: number): () => void {
   ws.onmessage = (ev) => {
     const payload = JSON.parse(ev.data)
     if (payload.event === 'countdown_started') {
-      useGameStore.getState().onCountdownStarted(payload.starts_at, payload.seconds ?? 15)
+      useGameStore.getState().onCountdownStarted(payload.starts_at, payload.seconds ?? 30)
     }
     if (payload.event === 'game_started') {
       useGameStore.getState().onGameStarted(payload.game_id)

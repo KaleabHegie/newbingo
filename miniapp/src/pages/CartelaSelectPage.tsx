@@ -44,7 +44,7 @@ export function CartelaSelectPage() {
         const rooms = await getRooms()
         const found = rooms.find((r) => r.id === currentRoomId)
         if (!found) {
-          setError('Room not found')
+          setError('ሩም አልተገኘም።')
           setLoading(false)
           return
         }
@@ -52,9 +52,6 @@ export function CartelaSelectPage() {
         setRoomEntity(found)
         setRoom(found.bet_amount, found.id)
 
-        const data = await getCartelas(found.id)
-        setGameIdLocal(data.game_id)
-        setCartelas(data.cartelas)
         const summary = await getRoomSummary(found.id)
         if (summary.countdown_left !== null) {
           const startsAt = new Date(Date.now() + summary.countdown_left * 1000).toISOString()
@@ -63,15 +60,24 @@ export function CartelaSelectPage() {
 
         const seat = await getMySeat(found.id)
         if (seat.game_id && seat.cartela_id) {
-          const existingCartela = data.cartelas.find((c) => c.id === seat.cartela_id)
-          if (existingCartela) {
-            setSelectedCartela(existingCartela)
-            setGame(seat.game_id)
-            localStorage.setItem(`selected_cartela_room_${found.id}`, JSON.stringify(existingCartela))
-            navigate(`/room/${found.id}/play`, { replace: true })
-            return
+          setGame(seat.game_id)
+          try {
+            const seatCartelas = await getCartelas(found.id)
+            const existingCartela = seatCartelas.cartelas.find((c) => c.id === seat.cartela_id)
+            if (existingCartela) {
+              setSelectedCartela(existingCartela)
+              localStorage.setItem(`selected_cartela_room_${found.id}`, JSON.stringify(existingCartela))
+            }
+          } catch {
+            // If game is already running, cartelas endpoint can fail. Still redirect to active game.
           }
+          navigate(`/room/${found.id}/play`, { replace: true })
+          return
         }
+
+        const data = await getCartelas(found.id)
+        setGameIdLocal(data.game_id)
+        setCartelas(data.cartelas)
       } catch (err) {
         if (axios.isAxiosError(err) && err.response?.status === 401) {
           clear()
@@ -80,9 +86,9 @@ export function CartelaSelectPage() {
         }
         if (axios.isAxiosError(err)) {
           const detail = (err.response?.data as { detail?: string } | undefined)?.detail
-          setError(detail || 'Unable to load cartelas')
+          setError(detail || 'ካርቴላዎችን መጫን አልተቻለም።')
         } else {
-          setError('Unable to load cartelas')
+          setError('ካርቴላዎችን መጫን አልተቻለም።')
         }
       } finally {
         setLoading(false)
@@ -100,7 +106,7 @@ export function CartelaSelectPage() {
       const latest = await getCartelas(room.id)
       const latestCard = latest.cartelas.find((c) => c.id === selected.id)
       if (!latestCard || latestCard.is_taken) {
-        setError('Selected cartela is already taken. Please choose another one.')
+        setError('የመረጡት ካርቴላ ተይዟል። ሌላ ይምረጡ።')
         setCartelas(latest.cartelas)
         setSelected(null)
         return
@@ -114,9 +120,9 @@ export function CartelaSelectPage() {
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const detail = (err.response?.data as { detail?: string } | undefined)?.detail
-        setError(detail || 'Unable to continue to game.')
+        setError(detail || 'ወደ ጨዋታ መቀጠል አልተቻለም።')
       } else {
-        setError('Unable to continue to game.')
+        setError('ወደ ጨዋታ መቀጠል አልተቻለም።')
       }
     } finally {
       setLoading(false)
@@ -127,29 +133,31 @@ export function CartelaSelectPage() {
     <main className="mx-auto max-w-7xl bg-gradient-to-b from-cyan-100 via-white to-amber-100 p-4 text-slate-900">
       <header className="mb-4 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold">Choose Cartela - {bet} Birr Room</h1>
-          <p className="text-sm text-slate-700">Available: {availableCount} / {cartelas.length}</p>
-          {countdownLeft !== null && <p className="text-sm font-semibold text-amber-700">Game starts in: {countdownLeft}s</p>}
+          <h1 className="text-xl font-bold">ካርቴላ ይምረጡ - {bet} ብር ሩም</h1>
+          <p className="text-sm text-slate-700">ያሉ: {availableCount} / {cartelas.length}</p>
+          {countdownLeft !== null && <p className="text-sm font-semibold text-amber-700">ጨዋታ የሚጀምረው: {countdownLeft} ሰከንድ ውስጥ</p>}
         </div>
         <button onClick={() => navigate('/')} className="rounded bg-cyan-600 px-3 py-2 text-sm text-white hover:bg-cyan-700">
-          Back
+          ተመለስ
         </button>
       </header>
 
-      {loading && <p className="mb-3 text-sm text-slate-700">Loading...</p>}
+      {loading && <p className="mb-3 text-sm text-slate-700">በመጫን ላይ...</p>}
       {error && <p className="mb-3 text-sm text-red-400">{error}</p>}
 
       {selected && (
         <section className="mb-4 rounded-xl border border-cyan-200 bg-white p-4 shadow-sm">
-          <h2 className="mb-3 text-lg font-semibold text-cyan-800">Selected Cartela {selected.display_number}</h2>
-          <CartelaBoard cartela={selected} />
+          <h2 className="mb-3 text-lg font-semibold text-cyan-800">የተመረጠ ካርቴላ {selected.display_number}</h2>
+          <div className="mx-auto max-w-[220px]">
+            <CartelaBoard cartela={selected} compact />
+          </div>
           <button
             type="button"
             onClick={continueToGame}
             disabled={loading || !gameId}
             className="mt-4 rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
           >
-            Continue to Called Numbers Page
+            ወደ የተጠሩ ቁጥሮች ገጽ ቀጥል
           </button>
         </section>
       )}

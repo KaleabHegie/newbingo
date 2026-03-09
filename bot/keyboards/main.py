@@ -1,12 +1,12 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
 
-BALANCE_BTN = "Balance"
-REGISTER_PHONE_BTN = "Register Phone"
-JOIN_10_BTN = "Join 10 Birr"
-DEPOSIT_BTN = "Deposit"
-WITHDRAW_BTN = "Withdraw"
-HISTORY_BTN = "History"
-MINI_APP_BTN = "Open Mini App"
+BALANCE_BTN = "ቀሪ ሂሳብ"
+REGISTER_PHONE_BTN = "ስልክ ቁጥር መመዝገብ"
+JOIN_10_BTN = "10 ብር ሩም ግባ"
+DEPOSIT_BTN = "ገንዘብ አስገባ"
+WITHDRAW_BTN = "ገንዘብ አውጣ"
+HISTORY_BTN = "ታሪክ"
+MINI_APP_BTN = "ሚኒ አፕ ክፈት"
 
 
 def register_only_keyboard() -> ReplyKeyboardMarkup:
@@ -32,7 +32,7 @@ def main_menu_keyboard(miniapp_url: str | None = None) -> ReplyKeyboardMarkup:
 
 def phone_request_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text="Share Phone Number", request_contact=True)]],
+        keyboard=[[KeyboardButton(text="ስልክ ቁጥሬን አጋራ", request_contact=True)]],
         resize_keyboard=True,
         one_time_keyboard=True,
     )
@@ -41,6 +41,6 @@ def phone_request_keyboard() -> ReplyKeyboardMarkup:
 def miniapp_keyboard(miniapp_url: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Open Bingo Mini App", web_app=WebAppInfo(url=miniapp_url))]
+            [InlineKeyboardButton(text="ወደ ቢንጎ ሚኒ አፕ ግባ", web_app=WebAppInfo(url=miniapp_url))]
         ]
     )

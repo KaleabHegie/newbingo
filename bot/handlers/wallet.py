@@ -29,9 +29,9 @@ async def _balance(message: Message):
     try:
         data = await call_with_reauth(message.from_user, client.get_balance)
     except Exception:
-        await message.answer("Unable to fetch balance now. Please try again.")
+        await message.answer("አሁን ቀሪ ሂሳብ ማየት አልተቻለም። ቆይተው ድጋሚ ይሞክሩ።")
         return
-    await message.answer(f"Balance: {data['balance']} Birr")
+    await message.answer(f"ቀሪ ሂሳብ: {data['balance']} ብር")
 
 
 @router.message(Command("balance"))
@@ -48,13 +48,13 @@ async def _deposit(message: Message):
     try:
         info = await call_with_reauth(message.from_user, client.deposit_info)
     except Exception:
-        await message.answer("Unable to load deposit instructions right now.")
+        await message.answer("አሁን የማስገቢያ መመሪያ ማሳየት አልተቻለም።")
         return
     await message.answer(
-        "Send money to:\n"
-        f"Telebirr Number: {info.get('telebirr_number', '0969146494')}\n"
-        f"Account Name: {info.get('account_name', 'ፀዴ Bingo')}\n\n"
-        "After sending, use /submit_deposit."
+        "ገንዘብ ወደዚህ ይላኩ:\n"
+        f"ቴሌብር ቁጥር: {info.get('telebirr_number', '0969146494')}\n"
+        f"የአካውንት ስም: {info.get('account_name', 'ፀዴ Bingo')}\n\n"
+        "ከላኩ በኋላ /submit_deposit ይጠቀሙ።"
     )
 
 
@@ -71,21 +71,21 @@ async def deposit_btn(message: Message):
 @router.message(Command("submit_deposit"))
 async def submit_deposit_start(message: Message, state: FSMContext):
     await state.set_state(DepositFlow.amount)
-    await message.answer("Enter deposit amount (Birr):")
+    await message.answer("የሚያስገቡትን መጠን (ብር) ያስገቡ:")
 
 
 @router.message(DepositFlow.amount)
 async def submit_deposit_amount(message: Message, state: FSMContext):
     await state.update_data(amount=(message.text or "").strip())
     await state.set_state(DepositFlow.reference)
-    await message.answer("Enter Telebirr transaction SMS:")
+    await message.answer("የቴሌብር የግብይት መልዕክት ያስገቡ:")
 
 
 @router.message(DepositFlow.reference)
 async def submit_deposit_reference(message: Message, state: FSMContext):
     await state.update_data(reference=(message.text or "").strip())
     await state.set_state(DepositFlow.sender_phone)
-    await message.answer("Enter sender phone number:")
+    await message.answer("የላኪውን ስልክ ቁጥር ያስገቡ:")
 
 
 @router.message(DepositFlow.sender_phone)
@@ -106,25 +106,25 @@ async def submit_deposit_sender_phone(message: Message, state: FSMContext):
         telebirr_number = info.get("telebirr_number", "0969146494")
         account_name = info.get("account_name", "ፀዴ Bingo")
         await message.answer(
-            "Deposit submitted successfully.\n\n"
-            "Telebirr message:\n"
-            f"I sent {amount} Birr to {account_name} ({telebirr_number}).\n"
-            f"Transaction Reference: {reference}\n"
-            f"Sender Phone: {sender_phone}\n\n"
-            f"Request status: {str(req.get('status', '')).upper()}.\n"
-            "Admin will verify and approve/reject."
+            "የማስገቢያ ጥያቄዎ ተልኳል።\n\n"
+            "የቴሌብር መረጃ:\n"
+            f"{amount} ብር ወደ {account_name} ({telebirr_number}) ተልኳል።\n"
+            f"የግብይት ማጣቀሻ: {reference}\n"
+            f"የላኪ ስልክ: {sender_phone}\n\n"
+            f"ሁኔታ: {str(req.get('status', '')).upper()}.\n"
+            "አድሚን ያረጋግጣል።"
         )
     except httpx.HTTPStatusError as exc:
-        detail = "Deposit submit failed."
+        detail = "የማስገቢያ ጥያቄ መላክ አልተቻለም።"
         try:
             payload = exc.response.json()
             if isinstance(payload, dict) and payload.get("detail"):
-                detail = str(payload["detail"])
+                detail = "የማስገቢያ ጥያቄ መላክ አልተቻለም። ድጋሚ ይሞክሩ።"
         except Exception:
             pass
         await message.answer(detail)
     except Exception:
-        await message.answer("Deposit submit failed. Please try again.")
+        await message.answer("የማስገቢያ ጥያቄ መላክ አልተቻለም። ድጋሚ ይሞክሩ።")
     finally:
         await state.clear()
 
@@ -134,23 +134,23 @@ async def deposit_status(message: Message):
     try:
         rows = await call_with_reauth(message.from_user, client.deposit_status)
     except Exception:
-        await message.answer("Unable to load deposit status.")
+        await message.answer("የማስገቢያ ሁኔታ ማሳየት አልተቻለም።")
         return
     if not rows:
-        await message.answer("No deposit requests found.")
+        await message.answer("የማስገቢያ ጥያቄ አልተገኘም።")
         return
-    lines = ["Recent deposit requests:"]
+    lines = ["የቅርብ ጊዜ የማስገቢያ ጥያቄዎች:"]
     for r in rows[:10]:
         lines.append(
-            f"- #{r['id']} | {r['amount']} Birr | {r['status'].upper()} | "
-            f"Ref: {r.get('telebirr_reference', '-')}"
+            f"- #{r['id']} | {r['amount']} ብር | {r['status'].upper()} | "
+            f"ማጣቀሻ: {r.get('telebirr_reference', '-')}"
         )
     await message.answer("\n".join(lines))
 
 
 async def _withdraw_start(message: Message, state: FSMContext):
     await state.set_state(WithdrawFlow.amount)
-    await message.answer("Enter withdraw amount (Birr):")
+    await message.answer("የሚያወጡትን መጠን (ብር) ያስገቡ:")
 
 
 @router.message(Command("withdraw"))
@@ -167,14 +167,14 @@ async def withdraw_btn(message: Message, state: FSMContext):
 async def withdraw_amount(message: Message, state: FSMContext):
     await state.update_data(amount=(message.text or "").strip())
     await state.set_state(WithdrawFlow.telebirr_phone)
-    await message.answer("Enter Telebirr phone number to receive money:")
+    await message.answer("ገንዘብ የሚቀበል የቴሌብር ስልክ ቁጥር ያስገቡ:")
 
 
 @router.message(WithdrawFlow.telebirr_phone)
 async def withdraw_phone(message: Message, state: FSMContext):
     await state.update_data(telebirr_phone=(message.text or "").strip())
     await state.set_state(WithdrawFlow.account_holder_name)
-    await message.answer("Enter account holder name:")
+    await message.answer("የአካውንት ባለቤት ስም ያስገቡ:")
 
 
 @router.message(WithdrawFlow.account_holder_name)
@@ -189,20 +189,20 @@ async def withdraw_holder_name(message: Message, state: FSMContext):
             lambda token: client.submit_withdraw(token, amount=amount, telebirr_phone=phone, account_holder_name=holder),
         )
         await message.answer(
-            f"Withdraw submitted.\nRequest #{req['id']}\nStatus: {req['status']}\n"
-            "Admin will process manually via Telebirr."
+            f"የማውጫ ጥያቄ ተልኳል።\nጥያቄ #{req['id']}\nሁኔታ: {req['status']}\n"
+            "አድሚን በቴሌብር በእጅ ያስኬዳል።"
         )
     except httpx.HTTPStatusError as exc:
-        detail = "Withdraw submit failed."
+        detail = "የማውጫ ጥያቄ መላክ አልተቻለም።"
         try:
             payload = exc.response.json()
             if isinstance(payload, dict) and payload.get("detail"):
-                detail = str(payload["detail"])
+                detail = "የማውጫ ጥያቄ መላክ አልተቻለም። ድጋሚ ይሞክሩ።"
         except Exception:
             pass
         await message.answer(detail)
     except Exception:
-        await message.answer("Withdraw submit failed. Please try again.")
+        await message.answer("የማውጫ ጥያቄ መላክ አልተቻለም። ድጋሚ ይሞክሩ።")
     finally:
         await state.clear()
 
@@ -212,16 +212,16 @@ async def withdraw_status(message: Message):
     try:
         rows = await call_with_reauth(message.from_user, client.withdraw_status)
     except Exception:
-        await message.answer("Unable to load withdraw status.")
+        await message.answer("የማውጫ ሁኔታ ማሳየት አልተቻለም።")
         return
     if not rows:
-        await message.answer("No withdraw requests found.")
+        await message.answer("የማውጫ ጥያቄ አልተገኘም።")
         return
-    lines = ["Recent withdraw requests:"]
+    lines = ["የቅርብ ጊዜ የማውጫ ጥያቄዎች:"]
     for r in rows[:10]:
         lines.append(
-            f"- #{r['id']} | {r['amount']} Birr | {r['status'].upper()} | "
-            f"Phone: {r.get('telebirr_phone', '-')}"
+            f"- #{r['id']} | {r['amount']} ብር | {r['status'].upper()} | "
+            f"ስልክ: {r.get('telebirr_phone', '-')}"
         )
     await message.answer("\n".join(lines))
 
@@ -230,20 +230,20 @@ async def _transactions(message: Message):
     try:
         txns = await call_with_reauth(message.from_user, client.transactions)
     except Exception:
-        await message.answer("Unable to load transaction history right now.")
+        await message.answer("አሁን የግብይት ታሪክ ማሳየት አልተቻለም።")
         return
 
     if not txns:
-        await message.answer("No transactions yet.")
+        await message.answer("እስካሁን ምንም ግብይት የለም።")
         return
 
-    rows = ["Recent transactions:"]
+    rows = ["የቅርብ ጊዜ ግብይቶች:"]
     for t in txns[:10]:
         txn_type = str(t.get("type", "")).upper()
         status = str(t.get("status", "")).upper()
         amount = t.get("amount", "0")
         created_at = str(t.get("created_at", ""))[:19].replace("T", " ")
-        rows.append(f"- {created_at} | {txn_type} | {amount} Birr | {status}")
+        rows.append(f"- {created_at} | {txn_type} | {amount} ብር | {status}")
 
     await message.answer("\n".join(rows))
 

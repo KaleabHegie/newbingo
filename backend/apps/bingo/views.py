@@ -11,7 +11,7 @@ from apps.wallet.services import WalletError
 from .deduction import calculate_prize
 from .models import Cartela, GamePlayer, Room
 from .serializers import ClaimBingoSerializer, JoinGameSerializer, RoomSerializer
-from .services import GameServiceError, claim_bingo, get_or_create_waiting_game, join_game
+from .services import COUNTDOWN_SECONDS, GameServiceError, claim_bingo, get_or_create_waiting_game, join_game
 
 
 class RoomListView(APIView):
@@ -151,7 +151,7 @@ class RoomSummaryView(APIView):
         prize, _ = calculate_prize(game.total_players, room.bet_amount)
         countdown_left = None
         if game.status == "waiting" and game.countdown_started_at:
-            delta = (game.countdown_started_at + timedelta(seconds=15) - timezone.now()).total_seconds()
+            delta = (game.countdown_started_at + timedelta(seconds=COUNTDOWN_SECONDS) - timezone.now()).total_seconds()
             countdown_left = max(0, int(delta))
         return Response(
             {

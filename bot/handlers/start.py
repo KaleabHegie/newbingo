@@ -1,10 +1,11 @@
 import os
 import re
 
+import httpx
 from aiogram import F, Router
 from aiogram.filters import Command, CommandStart
+from aiogram.filters.state import StateFilter
 from aiogram.types import Message
-import httpx
 
 from keyboards.main import (
     MINI_APP_BTN,
@@ -32,38 +33,37 @@ async def start_cmd(message: Message):
 
     if not is_registered:
         await message.answer(
-            "Welcome to Bingo Ethiopia.\nPlease register your phone number first.",
+            "እንኳን ወደ ቢንጎ ኢትዮጵያ በደህና መጡ።\nመጀመሪያ ስልክ ቁጥርዎን ይመዝግቡ።",
             reply_markup=register_only_keyboard(),
         )
         return
 
     await message.answer(
-        "Welcome to Bingo Ethiopia.\nUse the buttons below to manage wallet and join rooms.",
+        "እንኳን ወደ ፀዴ ቢንጎ በደህና መጡ።",
         reply_markup=main_menu_keyboard(MINI_APP_URL if MINI_APP_URL else None),
     )
     if MINI_APP_URL:
-        await message.answer("Tap to open the game interface:", reply_markup=miniapp_keyboard(MINI_APP_URL))
+        await message.answer("የጨዋታ ገጹን ለመክፈት ይጫኑ:", reply_markup=miniapp_keyboard(MINI_APP_URL))
 
 
 @router.message(Command("chatid"))
 async def chat_id_cmd(message: Message):
     chat = message.chat
-    await message.answer(
-        f"Chat ID: {chat.id}\nChat type: {chat.type}\nTitle: {chat.title or '-'}"
-    )
+    await message.answer(f"የቻት መለያ: {chat.id}\nየቻት አይነት: {chat.type}\nርዕስ: {chat.title or '-'}")
 
 
 @router.message(F.text.casefold() == MINI_APP_BTN.casefold())
 async def open_miniapp_btn(message: Message):
     if not MINI_APP_URL:
-        await message.answer("Mini app URL is not configured yet.")
+        await message.answer("የሚኒ አፕ ሊንክ ገና አልተዘጋጀም።")
         return
-    await message.answer("Tap to open the game interface:", reply_markup=miniapp_keyboard(MINI_APP_URL))
+    await message.answer("የጨዋታ ገጹን ለመክፈት ይጫኑ:", reply_markup=miniapp_keyboard(MINI_APP_URL))
 
 
 async def _ask_phone(message: Message):
     await message.answer(
-        "Please share your phone number to complete registration.",
+        "ምዝገባውን ለማጠናቀቅ ስልክ ቁጥርዎን ያጋሩ ወይም በእጅ ይፃፉ።\n"
+        "ምሳሌ: 0912345678 ወይም +251912345678",
         reply_markup=phone_request_keyboard(),
     )
 
@@ -78,50 +78,32 @@ async def register_phone_btn(message: Message):
     await _ask_phone(message)
 
 
-def _normalize_et_phone(raw: str) -> str:
-    """
-    Normalize Ethiopian phone numbers to E.164 format: +251XXXXXXXXX
-    Accepts inputs like:
-      - "+251 96 914 6494"
-      - "0969146494"
-      - "969146494"
-      - "+251969146494"
-    """
-    raw = (raw or "").strip()
-    digits = re.sub(r"\D", "", raw)
-
+def _normalize_et_phone(raw: str) -> tuple[str | None, str | None]:
+    digits = re.sub(r"\D", "", (raw or "").strip())
     if not digits:
-        return raw  # fallback
+        return None, "እባክዎ የትክክለኛ ስልክ ቁጥር ያስገቡ። ምሳሌ: 0912345678"
 
-    # 0XXXXXXXXX -> 251XXXXXXXXX
-    if digits.startswith("0"):
-        digits = "251" + digits[1:]
-
-    # 9 digits without country code -> assume Ethiopia
-    if len(digits) == 9 and not digits.startswith("251"):
-        digits = "251" + digits
-
-    # If it already starts with 251 and is correct length, keep it
     if digits.startswith("251"):
-        # Ethiopia mobile numbers are usually 9 digits after 251 => total 12 digits
-        # (We won't hard-fail here; backend will validate.)
-        return f"+{digits}"
+        local = digits[3:]
+    elif digits.startswith("0"):
+        local = digits[1:]
+    else:
+        local = digits
 
-    # Fallback: just prefix +
-    return f"+{digits}"
+    if len(local) != 9 or local[0] not in {"9", "7"}:
+        return None, (
+            "የስልክ ቁጥር ቅርጸት ትክክል አይደለም።\n"
+            "እባክዎ እነዚህን ቅርጸቶች ይጠቀሙ: 09XXXXXXXX, 07XXXXXXXX, +2519XXXXXXXX"
+        )
+
+    return f"+251{local}", None
 
 
-@router.message(F.contact)
-async def save_shared_contact(message: Message):
-    if not message.contact:
-        await message.answer("No contact found. Please try again.")
+async def _register_phone(message: Message, raw_phone: str):
+    phone_number, validation_error = _normalize_et_phone(raw_phone)
+    if validation_error or not phone_number:
+        await message.answer(validation_error or "የስልክ ቁጥር ማረጋገጥ አልተሳካም።")
         return
-    if message.contact.user_id and message.contact.user_id != message.from_user.id:
-        await message.answer("Please share your own Telegram contact.")
-        return
-
-    raw_phone = message.contact.phone_number or ""
-    phone_number = _normalize_et_phone(raw_phone)
 
     try:
         data = await call_with_reauth(
@@ -129,29 +111,41 @@ async def save_shared_contact(message: Message):
             lambda token: client.register_phone(token, phone_number),
         )
         await message.answer(
-            f"Phone registered: {data.get('phone_number')}\nYou can now join games.",
+            f"ስልክ ቁጥር ተመዝግቧል: {data.get('phone_number')}\nአሁን ጨዋታ መግባት ይችላሉ።",
             reply_markup=main_menu_keyboard(MINI_APP_URL if MINI_APP_URL else None),
         )
     except httpx.HTTPStatusError as exc:
-        detail = f"Unable to register phone (HTTP {exc.response.status_code})."
+        detail = "ስልክ ቁጥር መመዝገብ አልተቻለም።"
         try:
             payload = exc.response.json()
             if isinstance(payload, dict):
-                if payload.get("detail"):
-                    detail = str(payload["detail"])
-                else:
-                    # Show DRF field errors, e.g. {"phone_number": ["Invalid ..."]}
-                    detail = "\n".join(
-                        f"{k}: {', '.join(v) if isinstance(v, list) else v}"
-                        for k, v in payload.items()
-                    )
+                if payload.get("phone_number"):
+                    detail = "የስልክ ቁጥር ቅርጸት ትክክል አይደለም። ምሳሌ: +251912345678"
+                elif payload.get("detail"):
+                    detail = "ይህ ስልክ ቁጥር ቀድሞ ተመዝግቧል ወይም መመዝገብ አልተቻለም።"
         except Exception:
-            # Last resort: include a snippet of response text
-            try:
-                detail = f"{detail}\n{exc.response.text[:200]}"
-            except Exception:
-                pass
-
+            pass
         await message.answer(detail)
     except Exception:
-        await message.answer("Unable to register phone right now. Please try again.")
+        await message.answer("አሁን ስልክ ቁጥር መመዝገብ አልተቻለም። ቆይተው ድጋሚ ይሞክሩ።")
+
+
+@router.message(F.contact)
+async def save_shared_contact(message: Message):
+    if not message.contact:
+        await message.answer("ኮንታክት አልተገኘም። እንደገና ይሞክሩ።")
+        return
+    if message.contact.user_id and message.contact.user_id != message.from_user.id:
+        await message.answer("እባክዎ የራስዎን ኮንታክት ብቻ ያጋሩ።")
+        return
+    await _register_phone(message, message.contact.phone_number or "")
+
+
+@router.message(StateFilter(None), F.text.regexp(r".*[0-9]{9,}.*"))
+async def save_manual_phone(message: Message):
+    text = (message.text or "").strip()
+    if not text or text.startswith("/"):
+        return
+    if text.casefold() == REGISTER_PHONE_BTN.casefold():
+        return
+    await _register_phone(message, text)

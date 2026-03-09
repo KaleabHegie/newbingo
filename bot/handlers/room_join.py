@@ -16,14 +16,14 @@ async def _join(message: Message, bet_amount: int):
         profile = await call_with_reauth(message.from_user, client.me)
         if not profile.get("phone_registered"):
             await message.answer(
-                "Please register your phone first using the 'Register Phone' button.",
+                "እባክዎ መጀመሪያ ስልክ ቁጥርዎን ይመዝግቡ።",
                 reply_markup=register_only_keyboard(),
             )
             return
         rooms = await call_with_reauth(message.from_user, client.rooms)
         room = next((r for r in rooms if r["bet_amount"] == bet_amount), None)
         if not room:
-            await message.answer("Room not available")
+            await message.answer("ሩሙ አልተገኘም።")
             return
 
         cartelas_payload = await call_with_reauth(
@@ -32,7 +32,7 @@ async def _join(message: Message, bet_amount: int):
         )
         available = [c for c in cartelas_payload.get("cartelas", []) if not c.get("is_taken")]
         if not available:
-            await message.answer("No cartelas available right now. Please wait for the next game.")
+            await message.answer("አሁን የሚገኙ ካርቴላዎች የሉም። ቀጣዩን ጨዋታ ይጠብቁ።")
             return
 
         selected = available[0]
@@ -41,22 +41,22 @@ async def _join(message: Message, bet_amount: int):
             lambda token: client.join_room(token, room_id=room["id"], cartela_id=selected["id"]),
         )
     except httpx.HTTPStatusError as exc:
-        detail = "Unable to join right now. Check balance and try again."
+        detail = "አሁን መቀላቀል አልተቻለም። ቀሪ ሂሳብዎን ያረጋግጡ።"
         try:
             payload = exc.response.json()
             if isinstance(payload, dict) and payload.get("detail"):
-                detail = str(payload["detail"])
+                detail = "መቀላቀል አልተቻለም። ቆይተው ድጋሚ ይሞክሩ።"
         except Exception:
             pass
         await message.answer(detail)
         return
     except Exception:
-        await message.answer("Unable to join right now. Please try again.")
+        await message.answer("አሁን መቀላቀል አልተቻለም። ቆይተው ድጋሚ ይሞክሩ።")
         return
     await message.answer(
-        f"Joined {bet_amount} Birr room.\n"
-        f"Game #{result['game_id']} | Cartela {selected['id']}\n"
-        "Use the mini app link in chat to play."
+        f"{bet_amount} ብር ሩም ገብተዋል።\n"
+        f"ጨዋታ #{result['game_id']} | ካርቴላ {selected['id']}\n"
+        "ለመጫወት የሚኒ አፕ ሊንኩን ይጠቀሙ።"
     )
 
 
