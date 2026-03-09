@@ -16,7 +16,7 @@ from .deduction import calculate_prize
 from .models import Cartela, Game, GameAuditLog, GamePlayer, Room
 
 User = get_user_model()
-COUNTDOWN_SECONDS = 15
+COUNTDOWN_SECONDS = 30
 
 
 def _broadcast(room_id: int, payload: dict):
@@ -259,7 +259,7 @@ def claim_bingo(user_id: int, game_id: int) -> dict:
 
                 from .tasks import open_next_waiting_game
 
-                open_next_waiting_game.apply_async(args=[game.room_id], countdown=15)
+                open_next_waiting_game.apply_async(args=[game.room_id], countdown=30)
                 return {
                     "valid": False,
                     "reason": "Fake bingo. Player removed.",
@@ -311,5 +311,5 @@ def claim_bingo(user_id: int, game_id: int) -> dict:
         )
         from .tasks import open_next_waiting_game
 
-        open_next_waiting_game.apply_async(args=[game.room_id], countdown=15)
+        open_next_waiting_game.apply_async(args=[game.room_id], countdown=30)
         return {"valid": True, "prize": str(prize)}

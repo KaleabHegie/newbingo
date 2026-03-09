@@ -86,7 +86,7 @@ export function RoomSelectPage() {
             onClick={handleTelegramRegister}
             className="w-full rounded-xl bg-brand-500 px-4 py-3 font-semibold hover:bg-brand-700 disabled:opacity-60"
           >
-            {loading ? 'Registering...' : 'Register with Telegram'}
+            {loading ? 'Registering...' : 'Login with Telegram'}
           </button>
         </div>
       )}

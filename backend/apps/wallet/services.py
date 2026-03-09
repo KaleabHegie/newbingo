@@ -52,7 +52,7 @@ def apply_balance_delta(user_id: int, delta: Decimal) -> User:
         user = User.objects.select_for_update().get(id=user_id, is_active=True, is_banned=False)
         new_balance = user.balance + delta
         if new_balance < Decimal("0"):
-            raise WalletError("Insufficient balance")
+            raise WalletError("በቂ ቀሪ ሂሳብ የለም።")
         user.balance = F("balance") + delta
         user.save(update_fields=["balance"])
         user.refresh_from_db(fields=["balance"])
@@ -116,7 +116,7 @@ def submit_deposit_request(
     with transaction.atomic():
         reference = telebirr_reference.strip()
         if _is_reference_used(reference):
-            raise WalletError("This transaction reference is already used.")
+            raise WalletError("ይህ የክፍያ ማስረጃ (Reference) አስቀድሞ ተጠቅመዋል።")
         req = DepositRequest.objects.create(
             user=user,
             amount=amount,
@@ -133,8 +133,12 @@ def submit_deposit_request(
             request_ip=request_ip,
         )
         _send_telegram_notification(
-            f"Deposit submitted\nUser: {user.username}\nTelegram ID: {user.telegram_id}\n"
-            f"Amount: {amount} Birr\nRequest ID: {req.id}\nStatus: PENDING"
+            f"የገንዘብ ግቢ ጥያቄ ተልኳል\n"
+            f"ተጠቃሚ: {user.username}\n"
+            f"Telegram ID: {user.telegram_id}\n"
+            f"መጠን: {amount} ብር\n"
+            f"Request ID: {req.id}\n"
+            f"ሁኔታ: በመጠባበቅ ላይ"
         )
         return req
 
@@ -143,7 +147,7 @@ def approve_deposit_request(*, request_id: int, admin_user: User, note: str = ""
     with transaction.atomic():
         req = DepositRequest.objects.select_for_update().select_related("user").get(id=request_id)
         if req.status != "pending":
-            raise WalletError("Deposit request already processed.")
+            raise WalletError("የገንዘብ ግቢ ጥያቄው አስቀድሞ ተከናውኗል።")
         req.status = "approved"
         req.processed_by = admin_user
         req.processed_at = timezone.now()
@@ -164,8 +168,11 @@ def approve_deposit_request(*, request_id: int, admin_user: User, note: str = ""
             request_ip=req.request_ip,
         )
         _send_telegram_notification(
-            f"Deposit approved\nUser: {req.user.username}\nTelegram ID: {req.user.telegram_id}\n"
-            f"Amount: {req.amount} Birr\nRequest ID: {req.id}"
+            f"የገንዘብ ግቢ ጥያቄ ጸድቋል\n"
+            f"ተጠቃሚ: {req.user.username}\n"
+            f"Telegram ID: {req.user.telegram_id}\n"
+            f"መጠን: {req.amount} ብር\n"
+            f"Request ID: {req.id}"
         )
         return req
 
@@ -174,7 +181,7 @@ def reject_deposit_request(*, request_id: int, admin_user: User, note: str = "")
     with transaction.atomic():
         req = DepositRequest.objects.select_for_update().get(id=request_id)
         if req.status != "pending":
-            raise WalletError("Deposit request already processed.")
+            raise WalletError("የገንዘብ ግቢ ጥያቄው አስቀድሞ ተከናውኗል።")
         req.status = "rejected"
         req.processed_by = admin_user
         req.processed_at = timezone.now()
@@ -187,8 +194,11 @@ def reject_deposit_request(*, request_id: int, admin_user: User, note: str = "")
             request_ip=req.request_ip,
         )
         _send_telegram_notification(
-            f"Deposit rejected\nUser: {req.user.username}\nTelegram ID: {req.user.telegram_id}\n"
-            f"Amount: {req.amount} Birr\nRequest ID: {req.id}"
+            f"የገንዘብ ግቢ ጥያቄ ተከልክሏል\n"
+            f"ተጠቃሚ: {req.user.username}\n"
+            f"Telegram ID: {req.user.telegram_id}\n"
+            f"መጠን: {req.amount} ብር\n"
+            f"Request ID: {req.id}"
         )
         return req
 
@@ -196,15 +206,15 @@ def reject_deposit_request(*, request_id: int, admin_user: User, note: str = "")
 def validate_withdraw_request(*, user: User, amount: Decimal) -> None:
     min_withdraw = Decimal(str(getattr(settings, "MIN_WITHDRAW_BIRR", "100")))
     if amount < min_withdraw:
-        raise WalletError(f"Minimum withdraw is {min_withdraw} Birr.")
+        raise WalletError(f"አነስተኛ ማውጫ መጠን {min_withdraw} ብር ነው።")
     if user.balance < amount:
-        raise WalletError("Insufficient balance.")
+        raise WalletError("በቂ ቀሪ ሂሳብ የለም።")
 
     today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
     requests_today = WithdrawRequest.objects.filter(user=user, created_at__gte=today_start).count()
     max_count = int(getattr(settings, "DAILY_WITHDRAW_REQUEST_COUNT", 3))
     if requests_today >= max_count:
-        raise WalletError("Daily withdraw request limit reached.")
+        raise WalletError("የቀን የማውጫ ጥያቄ ገደብ ተደርሷል።")
 
     daily_limit = Decimal(str(getattr(settings, "DAILY_WITHDRAW_LIMIT_BIRR", "5000")))
     total_today = (
@@ -214,7 +224,7 @@ def validate_withdraw_request(*, user: User, amount: Decimal) -> None:
         or Decimal("0")
     )
     if total_today + amount > daily_limit:
-        raise WalletError(f"Daily withdraw limit is {daily_limit} Birr.")
+        raise WalletError(f"የቀን የማውጫ ገደብ {daily_limit} ብር ነው።")
 
 
 def _detect_suspicious_withdraw(user: User) -> tuple[bool, str]:
@@ -222,7 +232,7 @@ def _detect_suspicious_withdraw(user: User) -> tuple[bool, str]:
     lookback = timezone.now() - timedelta(minutes=lookback_minutes)
     recent_win = Transaction.objects.filter(user=user, type="win", created_at__gte=lookback).exists()
     if recent_win:
-        return True, "Rapid win-to-withdraw pattern"
+        return True, "ፈጣን ድል ተከትሎ የማውጫ እንቅስቃሴ ተገኝቷል"
     return False, ""
 
 
@@ -255,8 +265,12 @@ def submit_withdraw_request(
             request_ip=request_ip,
         )
         _send_telegram_notification(
-            f"Withdraw submitted\nUser: {user.username}\nTelegram ID: {user.telegram_id}\n"
-            f"Amount: {amount} Birr\nRequest ID: {req.id}\nStatus: PENDING"
+            f"የገንዘብ ማውጫ ጥያቄ ተልኳል\n"
+            f"ተጠቃሚ: {user.username}\n"
+            f"Telegram ID: {user.telegram_id}\n"
+            f"መጠን: {amount} ብር\n"
+            f"Request ID: {req.id}\n"
+            f"ሁኔታ: በመጠባበቅ ላይ"
         )
         return req
 
@@ -265,7 +279,7 @@ def mark_withdraw_paid(*, request_id: int, admin_user: User, note: str = "") -> 
     with transaction.atomic():
         req = WithdrawRequest.objects.select_for_update().select_related("user").get(id=request_id)
         if req.status != "pending":
-            raise WalletError("Withdraw request already processed.")
+            raise WalletError("የገንዘብ ማውጫ ጥያቄው አስቀድሞ ተከናውኗል።")
         apply_balance_delta(user_id=req.user_id, delta=-req.amount)
         create_transaction_with_reference(
             user=req.user,
@@ -286,8 +300,11 @@ def mark_withdraw_paid(*, request_id: int, admin_user: User, note: str = "") -> 
             request_ip=req.request_ip,
         )
         _send_telegram_notification(
-            f"Withdraw paid\nUser: {req.user.username}\nTelegram ID: {req.user.telegram_id}\n"
-            f"Amount: {req.amount} Birr\nRequest ID: {req.id}"
+            f"የገንዘብ ማውጫ ተከፍሏል\n"
+            f"ተጠቃሚ: {req.user.username}\n"
+            f"Telegram ID: {req.user.telegram_id}\n"
+            f"መጠን: {req.amount} ብር\n"
+            f"Request ID: {req.id}"
         )
         return req
 
@@ -296,7 +313,7 @@ def reject_withdraw_request(*, request_id: int, admin_user: User, note: str = ""
     with transaction.atomic():
         req = WithdrawRequest.objects.select_for_update().get(id=request_id)
         if req.status != "pending":
-            raise WalletError("Withdraw request already processed.")
+            raise WalletError("የገንዘብ ማውጫ ጥያቄው አስቀድሞ ተከናውኗል።")
         req.status = "rejected"
         req.processed_by = admin_user
         req.processed_at = timezone.now()
@@ -309,7 +326,10 @@ def reject_withdraw_request(*, request_id: int, admin_user: User, note: str = ""
             request_ip=req.request_ip,
         )
         _send_telegram_notification(
-            f"Withdraw rejected\nUser: {req.user.username}\nTelegram ID: {req.user.telegram_id}\n"
-            f"Amount: {req.amount} Birr\nRequest ID: {req.id}"
+            f"የገንዘብ ማውጫ ጥያቄ ተከልክሏል\n"
+            f"ተጠቃሚ: {req.user.username}\n"
+            f"Telegram ID: {req.user.telegram_id}\n"
+            f"መጠን: {req.amount} ብር\n"
+            f"Request ID: {req.id}"
         )
         return req

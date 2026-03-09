@@ -41,7 +41,7 @@ class DepositInfoView(APIView):
             {
                 "telebirr_number": getattr(settings, "TELEBIRR_NUMBER", "0969146494"),
                 "account_name": getattr(settings, "TELEBIRR_ACCOUNT_NAME", "ፀዴ Bingo"),
-                "instructions": "Send to Telebirr, then submit amount, reference, and sender phone.",
+                "instructions": "ገንዘቡን ወደ ቴሌብር ላኩ፣ ከዚያም የላኩትን መጠን፣ የክፍያ ማስረጃ (Reference) እና የላኪውን ስልክ ቁጥር ያስገቡ።",
             }
         )
 
